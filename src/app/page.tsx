@@ -35,7 +35,18 @@ export default function Home() {
       }
 
       setSuccess(true)
-      setResult(data.data)
+      
+      // 중복 URL 처리
+      if (data.duplicate) {
+        setResult({
+          ...data.data,
+          duplicate: true,
+          message: data.message || '이미 저장된 대화입니다.'
+        })
+      } else {
+        setResult(data.data)
+      }
+      
       setUrl('')
     } catch (err) {
       console.error('Error:', err)
@@ -87,20 +98,27 @@ export default function Home() {
           )}
 
           {success && (
-            <div className="mt-4 p-4 bg-green-50 text-green-700 rounded-md border border-green-200">
-              <p className="font-bold mb-2">대화가 성공적으로 저장되었습니다!</p>
+            <div className={`mt-4 p-4 ${result?.duplicate ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'} rounded-md border`}>
+              <p className="font-bold mb-2">
+                {result?.duplicate ? '중복 감지!' : '대화가 성공적으로 저장되었습니다!'}
+              </p>
               {result && (
                 <div className="text-sm">
-                  <p><strong>제목:</strong> {result.conversation.title}</p>
-                  
-                  {result.obsidian && (
-                    <p><strong>Obsidian 저장:</strong> {result.obsidian.path}/{result.obsidian.fileName}</p>
+                  {result.duplicate ? (
+                    <p>{result.message || '이미 저장된 대화입니다.'}</p>
+                  ) : (
+                    <>
+                      <p><strong>제목:</strong> {result.conversation?.title}</p>
+                      
+                      {result.obsidian && (
+                        <p><strong>Obsidian 저장:</strong> {result.obsidian.path}/{result.obsidian.fileName}</p>
+                      )}
+                      
+                      {result.jsonBackup && (
+                        <p><strong>JSON 백업:</strong> {result.jsonBackup}</p>
+                      )}
+                    </>
                   )}
-                  
-                  {result.jsonBackup && (
-                    <p><strong>JSON 백업:</strong> {result.jsonBackup}</p>
-                  )}
-                  
                 </div>
               )}
             </div>

@@ -10,17 +10,13 @@ export interface ChatMessage {
 }
 
 export interface Conversation {
-  id: string;
+  id?: string;
   title: string;
   messages: ChatMessage[];
   createdAt: Date | string;
   source: ChatSource;
   tags?: string[];
-  metadata?: {
-    date: string;
-    model: string;
-    tags: string[];
-  };
+  metadata?: Record<string, any>;
 }
 
 export interface ConversationSummary {
@@ -42,4 +38,42 @@ export type ApiResponse<T> = {
   success: boolean;
   data?: T;
   error?: string;
-}; 
+};
+
+export interface SummaryResult {
+  summary: string;
+  keywords: string[];
+  modelUsed: string;
+}
+
+export interface ChatChunk {
+  id: string;
+  chat_session_id: string;
+  chunk_index: number;
+  content: string;
+  embedding?: number[];
+  similarity?: number;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  url: string;
+  summary: string;
+  messages: ChatMessage[];
+  metadata?: Record<string, any>;
+  created_at?: string;
+  embedding?: number[];
+}
+
+export interface RagSource {
+  id?: string;
+  title?: string;
+  url?: string;
+  similarity?: number;
+}
+
+export interface RagResponse {
+  answer: string;
+  sources: RagSource[];
+} 

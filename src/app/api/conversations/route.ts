@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseChatGPTLink } from '@/lib/utils/chatgpt'
+import { summarizeConversation, summarizeLongConversation } from '@/lib/utils/openai'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -78,7 +79,7 @@ export async function POST(request: Request): Promise<Response> {
         { status: 500 }
       );
     }
-
+    
     try {
       // 고유 ID 생성
       const id = conversation.id || `${Date.now()}-${uuidv4().substring(0, 8)}`;
@@ -98,12 +99,37 @@ export async function POST(request: Request): Promise<Response> {
       // 폴더 생성 (없는 경우)
       await fs.mkdir(obsidianFolder, { recursive: true });
       
+      // OpenAI API를 사용하여 대화 내용 요약 생성
+      console.log('Generating conversation summary...');
+      console.log(`처리할 대화 메시지 수: ${conversation.messages.length}`);
+      
+      // 대화 요약 생성 (메시지가 20개 초과하면 긴 대화 요약 함수 사용)
+      const summaryResult = conversation.messages.length > 20
+        ? await summarizeLongConversation(
+            conversation.title,
+            conversation.messages
+          )
+        : await summarizeConversation(
+            conversation.title,
+            conversation.messages
+          );
+      
+      console.log(`생성된 요약 (${summaryResult.summary.length} 자) - 키워드: ${summaryResult.keywords.length}개`);
+      console.log('키워드:', summaryResult.keywords.join(', '));
+      
+      // 태그 목록 준비 (요약에서 추출한 키워드 + ChatGPT 모델)
+      const tags = [
+        ...(summaryResult.keywords || []),
+        conversation.metadata?.model || 'ChatGPT'
+      ].filter(Boolean); // 빈 값 제거
+      
       // YAML 프론트매터 생성
       const frontmatter = `---
 title: ${conversation.title}
-date: ${new Date().toLocaleString('ko-KR')}
+date: ${new Date().toISOString()}
 source: ${url}
-tags: ${conversation.metadata?.model || 'ChatGPT'}
+tags: [${tags.map(tag => `"${tag}"`).join(', ')}]
+model: ${summaryResult.modelUsed || conversation.metadata?.model || 'ChatGPT'}
 ---
 
 `;
@@ -118,8 +144,8 @@ tags: ${conversation.metadata?.model || 'ChatGPT'}
       markdownContent += `> [원본 URL](${url})\n\n`;
       markdownContent += `> 저장 시간: ${new Date().toLocaleString('ko-KR')}\n\n`;
       
-      if (conversation.metadata?.model) {
-        markdownContent += `> 태그: ${conversation.metadata.model}\n\n`;
+      if (tags.length > 0) {
+        markdownContent += `> 태그: ${tags.join(', ')}\n\n`;
       }
       
       markdownContent += `---\n\n`;
@@ -128,7 +154,7 @@ tags: ${conversation.metadata?.model || 'ChatGPT'}
       conversation.messages.forEach((message, index) => {
         const isUser = message.role === 'user';
         const messageHeader = isUser ? '## 👤 사용자' : '## 🤖 assistant';
-        
+      
         // JSON 형식처럼 역할과 내용을 구분하여 표시
         markdownContent += `${messageHeader}\n\n${message.content}\n\n`;
         
@@ -137,6 +163,14 @@ tags: ${conversation.metadata?.model || 'ChatGPT'}
           markdownContent += `---\n\n`;
         }
       });
+      
+      // 요약 섹션 추가
+      markdownContent += `\n\n---\n\n## 💡 요약\n\n${summaryResult.summary}\n`;
+      
+      // 키워드 섹션 추가
+      if (summaryResult.keywords && summaryResult.keywords.length > 0) {
+        markdownContent += `\n## 🔑 키워드\n\n${summaryResult.keywords.map(k => `\`${k}\``).join(' ')}\n`;
+      }
       
       // 옵시디언에 마크다운 파일 저장
       const obsidianFilePath = path.join(obsidianFolder, fileName);
@@ -162,11 +196,12 @@ tags: ${conversation.metadata?.model || 'ChatGPT'}
         content: conversation.messages,
         metadata: {
           date: new Date().toISOString(),
-          model: conversation.metadata?.model || 'gpt-4',
-          tags: []
+          model: summaryResult.modelUsed || conversation.metadata?.model || 'gpt-4',
+          tags: summaryResult.keywords || []
         },
         createdAt: new Date().toISOString(),
-        url
+        url,
+        summary: summaryResult.summary
       };
       
       // JSON 파일로 저장
@@ -187,7 +222,9 @@ tags: ${conversation.metadata?.model || 'ChatGPT'}
             textPath: textFilePath,
             contentType: "markdown-formatted"
           },
-          jsonBackup: jsonFilePath
+          jsonBackup: jsonFilePath,
+          summary: summaryResult.summary,
+          keywords: summaryResult.keywords
         },
       });
     } catch (saveError) {
