@@ -2,9 +2,11 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm run build"
+    "buildCommand": "npm install && npm run build && playwright install chromium",
+    "nixpacksConfigPath": "nixpacks.toml"
   },
   "deploy": {
+    "numReplicas": 1,
     "startCommand": "npm start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
