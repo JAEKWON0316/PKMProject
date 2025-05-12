@@ -14,16 +14,82 @@ export async function parseChatGPTLink(url: string): Promise<{
   let browser: Browser | null = null;
   
   try {
+    // 브라우저 경로 디버깅 로그
+    console.log('=== Browser Path Debug Info ===');
+    console.log('PLAYWRIGHT_BROWSERS_PATH:', process.env.PLAYWRIGHT_BROWSERS_PATH);
+    
+    // 가능한 실행 파일 경로들
+    const possiblePaths = [
+      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/headless_shell`,
+      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/chrome-linux/headless_shell`,
+      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-linux/chrome`,
+      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-win/chrome.exe`,
+      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium/chrome-linux/chrome`,
+    ];
+    
+    console.log('Checking possible executable paths:');
+    for (const path of possiblePaths) {
+      try {
+        const fs = require('fs');
+        const exists = fs.existsSync(path);
+        console.log(`- ${path}: ${exists ? 'EXISTS' : 'NOT FOUND'}`);
+      } catch (e) {
+        console.log(`- ${path}: ERROR checking path`);
+      }
+    }
+    
+    // 첫 번째 경로로 시도
+    let browserLaunchError = null;
+    
     // Chromium 브라우저 시작 (headless 모드)
-    browser = await chromium.launch({
-      headless: true,  // 백그라운드에서 실행
-      args: [
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--no-sandbox',
-      ],
-      timeout: 60000, // 60초 타임아웃
-    });
+    try {
+      console.log('Trying to launch browser with primary path...');
+      browser = await chromium.launch({
+        headless: true,  // 백그라운드에서 실행
+        args: [
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--no-sandbox',
+        ],
+        timeout: 60000, // 60초 타임아웃
+        // 실행 파일 경로 직접 지정
+        executablePath: process.env.PLAYWRIGHT_BROWSERS_PATH 
+          ? `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/headless_shell` 
+          : undefined
+      });
+      console.log('Browser launched successfully with primary path');
+    } catch (e) {
+      console.error('Failed to launch with primary path:', e);
+      browserLaunchError = e;
+      
+      // 첫 번째 경로 실패 시 다른 경로 시도
+      for (let i = 1; i < possiblePaths.length; i++) {
+        try {
+          console.log(`Trying alternate path: ${possiblePaths[i]}`);
+          browser = await chromium.launch({
+            headless: true,
+            args: ['--no-sandbox'],
+            timeout: 60000,
+            executablePath: possiblePaths[i]
+          });
+          console.log(`Browser launched successfully with alternate path: ${possiblePaths[i]}`);
+          browserLaunchError = null;
+          break;
+        } catch (err) {
+          console.error(`Failed with alternate path ${possiblePaths[i]}:`, err);
+        }
+      }
+      
+      // 모든 경로 실패 시 오류 발생
+      if (browserLaunchError) {
+        throw new Error(`모든 브라우저 실행 경로 시도 실패: ${browserLaunchError instanceof Error ? browserLaunchError.message : String(browserLaunchError)}`);
+      }
+    }
+
+    // browser가 null인 경우 처리 (모든 실행 경로 시도 후에도 실패한 경우)
+    if (!browser) {
+      throw new Error('브라우저를 시작할 수 없습니다. 실행 파일 경로를 확인하세요.');
+    }
 
     // 브라우저 컨텍스트 및 페이지 생성
     const context = await browser.newContext({
