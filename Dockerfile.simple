@@ -1,0 +1,15 @@
+FROM mcr.microsoft.com/playwright:v1.40.0-focal
+
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# 사전 빌드된 앱 파일 복사
+COPY package.json package-lock.json* ./
+COPY .next ./.next
+COPY public ./public
+COPY node_modules ./node_modules
+
+EXPOSE 3000
+CMD ["npm", "start"] 

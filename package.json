@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npx playwright install chromium",
+    "build": "next build",
+    "postbuild": "echo 'Build completed'",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && playwright install chromium --with-deps"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
