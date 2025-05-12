@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['cheerio'],
+    serverComponentsExternalPackages: ['playwright'],
   },
   webpack: (config, { isServer }) => {
     if (isServer) {

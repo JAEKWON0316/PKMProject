@@ -170,7 +170,7 @@ export default function RagPage() {
                       id="url"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://chat.openai.com/share/..."
+                      placeholder="https://chatgpt.com/share/..."
                       className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none"
                       required
                     />
