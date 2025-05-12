@@ -1,28 +1,38 @@
-# Node.js 20 기반 간단한 Dockerfile
-FROM node:20
+# 매우 단순한 Dockerfile - 설치 옵션 최소화
+FROM node:20-bullseye-slim
 
 WORKDIR /app
 
-# Node.js 관련 설정
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
-# Playwright 관련 시스템 패키지 설치
+# 시스템 의존성 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
     libnss3 \
     libnspr4 \
     libgbm1 \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# 프로젝트 파일 복사
+# 패키지 파일만 먼저 복사
+COPY package.json ./
+
+# Clean install - CI 환경에 최적화 (pacakge-lock.json 무시)
+RUN npm install --only=production --unsafe-perm
+
+# 소스 파일 복사
 COPY . .
 
-# 의존성 설치 및 애플리케이션 빌드
-RUN npm install && npm run build
+# 빌드 실행
+RUN npm run build
 
-# 앱 실행
+# 환경변수 설정
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
+# Playwright 설치
+RUN npx playwright install chromium --with-deps
+
+# 앱 실행
 EXPOSE 3000
 CMD ["npm", "start"] 
