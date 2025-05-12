@@ -113,8 +113,9 @@ export async function POST(request: Request): Promise<Response> {
           message: '이미 저장된 대화입니다.',
           data: {
             id: existingSession?.id,
-            title: conversation.title,
-            url
+            title: existingSession?.title || conversation.title,
+            url,
+            createdAt: existingSession?.created_at
           }
         });
       }
@@ -136,6 +137,7 @@ export async function POST(request: Request): Promise<Response> {
           duplicate: true,
           message: obsidianResult.message || '이미 저장된 대화입니다.',
           data: {
+            id: existingSession?.id || `duplicate-${Date.now()}`,
             title: conversation.title,
             url
           }

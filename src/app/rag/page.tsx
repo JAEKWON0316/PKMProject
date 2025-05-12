@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { RagResponse } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function RagPage() {
   const [url, setUrl] = useState('');
@@ -11,6 +13,7 @@ export default function RagPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any | null>(null);
   const [ragResponse, setRagResponse] = useState<RagResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'response' | 'sources'>('response');
   const router = useRouter();
 
   // ChatGPT 대화 저장 함수
@@ -82,135 +85,355 @@ export default function RagPage() {
     }
   };
 
+  // 탭 전환 함수
+  const switchTab = (tab: 'response' | 'sources') => {
+    setActiveTab(tab);
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">RAG 시스템</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* ChatGPT 대화 저장 폼 */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">ChatGPT 대화 저장</h2>
-          <form onSubmit={handleSaveConversation}>
-            <div className="mb-4">
-              <label htmlFor="url" className="block text-sm font-medium mb-2">
-                ChatGPT 공유 URL
-              </label>
-              <input
-                type="url"
-                id="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://chat.openai.com/share/..."
-                className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-700"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50"
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto px-4 py-16">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-5xl mx-auto"
+        >
+          {/* 헤더 섹션 */}
+          <div className="text-center mb-12">
+            <motion.h1 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-4"
             >
-              {loading ? '처리 중...' : '대화 저장'}
-            </button>
-          </form>
-          
-          {/* 저장 결과 표시 */}
-          {result && (
-            <div className={`mt-6 p-4 ${result.duplicate ? 'bg-yellow-50 dark:bg-yellow-900/30' : 'bg-gray-50 dark:bg-gray-700'} rounded-md`}>
-              <h3 className="text-lg font-medium mb-2">
-                {result.duplicate ? '중복 감지!' : '저장 완료!'}
-              </h3>
-              
-              {result.duplicate ? (
-                <>
-                  <p className="mb-2">{result.message}</p>
-                  <p className="mb-2"><strong>제목:</strong> {result.title}</p>
-                  <p className="text-sm text-gray-500">ID: {result.id}</p>
-                </>
-              ) : (
-                <>
-                  <p className="mb-2"><strong>제목:</strong> {result.title}</p>
-                  <p className="mb-2"><strong>요약:</strong> {result.summary.substring(0, 100)}...</p>
-                  <p className="mb-2"><strong>청크:</strong> {result.chunks}개</p>
-                  <p className="text-sm text-gray-500">ID: {result.id}</p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        
-        {/* 질의응답 폼 */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">질문하기</h2>
-          <form onSubmit={handleAskQuestion}>
-            <div className="mb-4">
-              <label htmlFor="query" className="block text-sm font-medium mb-2">
-                질문
-              </label>
-              <textarea
-                id="query"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="질문을 입력하세요..."
-                className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-700"
-                rows={4}
-                required
-              ></textarea>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50"
+              RAG 시스템
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              className="text-xl text-gray-600 dark:text-gray-300"
             >
-              {loading ? '응답 생성 중...' : '질문하기'}
-            </button>
-          </form>
+              벡터 검색 기반 지식 관리 시스템
+            </motion.p>
+          </div>
           
-          {/* 질의응답 결과 표시 */}
-          {ragResponse && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium mb-2">답변</h3>
-              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-md mb-4 whitespace-pre-wrap">
-                {ragResponse.answer}
-              </div>
-              
-              {ragResponse.sources.length > 0 && (
-                <div>
-                  <h4 className="text-md font-medium mb-2">출처</h4>
-                  <ul className="space-y-2">
-                    {ragResponse.sources.map((source, i) => (
-                      <li key={i} className="p-3 bg-gray-100 dark:bg-gray-600 rounded-md">
-                        <p className="font-medium">{source.title}</p>
-                        {source.url && (
-                          <a 
-                            href={source.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline text-sm"
-                          >
-                            원본 대화 보기
-                          </a>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          유사도: {(source.similarity || 0).toFixed(2)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
+          {/* 버튼 컨테이너 */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="flex justify-center gap-4 mb-8"
+          >
+            <Link 
+              href="/" 
+              className="group relative overflow-hidden px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <span className="relative z-10 flex items-center gap-3 text-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M9 6l-6 6 6 6"/></svg>
+                메인 페이지로 돌아가기
+              </span>
+              <motion.span 
+                className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: 0 }}
+                transition={{ type: "spring", stiffness: 100, damping: 15 }}
+              ></motion.span>
+            </Link>
+          </motion.div>
+          
+          {/* 폼 컨테이너들 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* ChatGPT 대화 저장 폼 */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.7, duration: 0.5 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700"
+            >
+              <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-white">대화 저장하기</h2>
+              <form onSubmit={handleSaveConversation} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ChatGPT 공유 링크
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="url"
+                      id="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://chat.openai.com/share/..."
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none"
+                      required
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>처리 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                      </svg>
+                      <span>대화 저장</span>
+                    </>
+                  )}
+                </button>
+              </form>
+  
+              {/* 저장 결과 표시 */}
+              <AnimatePresence>
+                {result && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className={`mt-6 p-4 ${result.duplicate ? 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800' : 'bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800'} rounded-lg flex items-start`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      {result.duplicate ? (
+                        <><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></>
+                      ) : (
+                        <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></>
+                      )}
+                    </svg>
+                    <div>
+                      <p className="font-medium">
+                        {result.duplicate ? '중복 감지!' : '저장 완료!'}
+                      </p>
+                      <div className="mt-2 text-sm">
+                        {result.duplicate ? (
+                          <p>{result.message || '이미 저장된 대화입니다.'}</p>
+                        ) : (
+                          <>
+                            <p className="mb-1"><span className="font-medium">제목:</span> {result.title}</p>
+                            <p className="mb-1"><span className="font-medium">청크:</span> {result.chunks}개</p>
+                            <p><span className="font-medium">ID:</span> {result.id}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+            
+            {/* 질의응답 폼 */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.8, duration: 0.5 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700"
+            >
+              <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-white">질문하기</h2>
+              <form onSubmit={handleAskQuestion} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="query" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    검색 질문
+                  </label>
+                  <textarea
+                    id="query"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="질문을 입력하세요..."
+                    className="block w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none"
+                    rows={4}
+                    required
+                  ></textarea>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center items-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>응답 생성 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                      <span>검색하기</span>
+                    </>
+                  )}
+                </button>
+              </form>
+              
+              {/* 질의응답 결과 표시 */}
+              <AnimatePresence>
+                {ragResponse && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="mt-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600"
+                  >
+                    <h3 className="text-lg font-medium mb-3 text-gray-800 dark:text-white flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                      응답
+                    </h3>
+                    
+                    {/* 요약 섹션 - 첫 문장 또는 적절한 길이의 요약 */}
+                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100 dark:border-blue-800">
+                      <h4 className="text-sm uppercase font-semibold text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="16" x2="12" y2="12"></line>
+                          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        요약
+                      </h4>
+                      <p className="text-gray-800 dark:text-gray-200 font-medium">
+                        {/* 답변이 너무 짧으면 전체 표시, 아니면 첫 문장만 */}
+                        {ragResponse.answer.length < 100 
+                          ? ragResponse.answer
+                          : ragResponse.answer.split('.')[0].length < 30 
+                            ? `${ragResponse.answer.split('.').slice(0, 2).join('.')}.`
+                            : `${ragResponse.answer.split('.')[0]}.`
+                        }
+                      </p>
+                    </div>
+                    
+                    {/* 탭 인터페이스 */}
+                    <div className="mb-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex space-x-4">
+                        <button 
+                          className={`py-2 px-1 border-b-2 ${activeTab === 'response' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'} font-medium transition-colors`}
+                          onClick={() => switchTab('response')}
+                        >
+                          전체 응답
+                        </button>
+                        {ragResponse.sources.length > 0 && (
+                          <button 
+                            className={`py-2 px-1 border-b-2 ${activeTab === 'sources' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'} font-medium transition-colors`}
+                            onClick={() => switchTab('sources')}
+                          >
+                            출처 정보 ({ragResponse.sources.length})
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* 탭 콘텐츠 */}
+                    <AnimatePresence mode="wait">
+                      {activeTab === 'response' ? (
+                        <motion.div
+                          key="response"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {/* 전체 응답 - 스크롤 가능한 컨테이너 */}
+                          <div className="p-4 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 whitespace-pre-wrap max-h-80 overflow-y-auto custom-scrollbar">
+                            {ragResponse.answer.split('\n').map((paragraph, i) => (
+                              <p key={i} className={i > 0 ? "mt-3" : ""}>{paragraph}</p>
+                            ))}
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="sources"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {/* 출처 정보 */}
+                          <div className="max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {ragResponse.sources.map((source, i) => (
+                                <motion.div 
+                                  key={i} 
+                                  className="p-3 bg-white dark:bg-gray-800 rounded-md shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-700"
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.05 * (i + 1) }}
+                                >
+                                  <p className="font-medium text-gray-800 dark:text-white truncate">{source.title}</p>
+                                  {source.url && (
+                                    <a 
+                                      href={source.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-500 hover:underline text-sm flex items-center gap-1 mt-1"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                      </svg>
+                                      원본 대화 보기
+                                    </a>
+                                  )}
+                                  <div className="flex items-center mt-2">
+                                    <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 py-1 px-2 rounded-full">
+                                      유사도: {(source.similarity || 0).toFixed(2)}
+                                    </span>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+          
+          {/* 에러 메시지 */}
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mt-6 p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-100 rounded-lg border border-red-200 dark:border-red-800 flex items-start"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div>
+                  <p className="font-medium">오류 발생</p>
+                  <p className="mt-1">{error}</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
-      
-      {/* 에러 메시지 */}
-      {error && (
-        <div className="mt-6 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-md">
-          <p className="font-medium">오류 발생</p>
-          <p>{error}</p>
-        </div>
-      )}
-    </div>
+    </main>
   );
 } 

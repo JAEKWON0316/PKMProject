@@ -13,8 +13,13 @@ function sanitizeJsonData(data: any): any {
   if (!data) return null;
   
   if (typeof data === 'string') {
-    // 문자열에서 제어 문자 제거
-    return data.replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ').replace(/\s+/g, ' ').trim();
+    // 문자열에서 제어 문자 제거 및 유니코드 문자 처리 개선
+    return data
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')  // 제어 문자 제거
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, match => match) // 올바른 유니코드 이모지 유지
+      .replace(/\uFFFD/g, '') // 대체 문자 제거
+      .replace(/\s+/g, ' ') // 연속된 공백 제거
+      .trim();
   }
   
   if (Array.isArray(data)) {

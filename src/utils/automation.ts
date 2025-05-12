@@ -1,5 +1,8 @@
 // 전역 MCP 타입 선언 추가
 declare global {
+  interface Window {
+    mcp: Record<string, any> | undefined;
+  }
   var mcp: Record<string, any> | undefined;
 }
 
@@ -56,7 +59,9 @@ async function checkJsonFileExists(url: string): Promise<boolean> {
     }
     
     // URL 정규화 (쿼리 파라미터 등 제거)
-    const normalizedUrl = new URL(url).origin + new URL(url).pathname;
+    const parsedUrl = new URL(url);
+    const normalizedUrl = parsedUrl.origin + parsedUrl.pathname;
+    const shareId = parsedUrl.pathname.split('/').pop() || '';
     
     // 모든 JSON 파일 목록 가져오기
     const files = fs.readdirSync(projectConversationPath).filter(file => file.endsWith('.json'));
@@ -67,9 +72,33 @@ async function checkJsonFileExists(url: string): Promise<boolean> {
       const content = await readFileAsync(filePath, 'utf8');
       const data = JSON.parse(content);
       
-      if (data.url && data.url.startsWith(normalizedUrl)) {
-        console.log(`이미 저장된 JSON 파일 발견: ${file}`);
-        return true;
+      if (data.url) {
+        // 완전히 일치하는 경우
+        if (data.url === url) {
+          console.log(`완전히 일치하는 URL 발견: ${file}`);
+          return true;
+        }
+        
+        // 경로의 마지막 부분 (share ID) 비교
+        try {
+          const existingParsedUrl = new URL(data.url);
+          const existingShareId = existingParsedUrl.pathname.split('/').pop() || '';
+          
+          if (shareId && existingShareId && shareId === existingShareId) {
+            console.log(`공유 ID가 일치하는 URL 발견: ${file}`);
+            return true;
+          }
+          
+          // 정규화된 URL로 비교
+          const existingNormalizedUrl = existingParsedUrl.origin + existingParsedUrl.pathname;
+          if (normalizedUrl === existingNormalizedUrl) {
+            console.log(`정규화된 URL이 일치하는 파일 발견: ${file}`);
+            return true;
+          }
+        } catch (parseError) {
+          // URL 파싱 오류, 계속 진행
+          console.error('기존 URL 파싱 오류:', parseError);
+        }
       }
     }
     
@@ -125,7 +154,8 @@ async function saveToFileSystem(
         files: {
           markdown: markdownFilePath, 
           text: textFilePath
-        }
+        },
+        duplicate: true
       };
     }
     
@@ -152,7 +182,8 @@ async function saveToFileSystem(
     // 메타데이터에 model 필드 추가 또는 수정
     const metadataWithModel = {
       ...(conversation.metadata || {}),
-      model: 'gpt-4.1-nano'
+      model: conversation.metadata?.model || 'gpt-4.1-nano',
+      savedAt: new Date().toISOString()
     };
     
     await writeFileAsync(
