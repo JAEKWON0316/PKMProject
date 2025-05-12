@@ -1,5 +1,5 @@
-# 다른 Node.js 버전 시도 (LTS 버전인 18 사용)
-FROM node:18 AS deps
+# Node.js 20 버전 사용 (npm 11 호환성을 위해)
+FROM node:20 AS deps
 
 # 작업 디렉토리 설정
 WORKDIR /app
@@ -11,14 +11,11 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # 패키지 파일 복사
 COPY package.json package-lock.json ./
 
-# npm 최신 버전으로 업데이트
-RUN npm install -g npm@latest
-
-# 의존성 설치
+# 의존성 설치 (npm 업그레이드 없이)
 RUN npm install --no-audit --no-fund
 
 # 빌드 단계
-FROM node:18 AS builder
+FROM node:20 AS builder
 WORKDIR /app
 
 # 설치된 node_modules 복사

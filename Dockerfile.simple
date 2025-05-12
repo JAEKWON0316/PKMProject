@@ -1,7 +1,18 @@
-# 최대한 단순한 Dockerfile 
-FROM mcr.microsoft.com/playwright:v1.40.0-focal
+# Node.js 20 기반 간단한 Dockerfile
+FROM node:20
 
 WORKDIR /app
+
+# Node.js 관련 설정
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Playwright 관련 시스템 패키지 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libnspr4 \
+    libgbm1 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
 
 # 프로젝트 파일 복사
 COPY . .
