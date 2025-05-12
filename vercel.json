@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && npx playwright install chromium",
+  "buildCommand": "apt-get update && apt-get install -y libnss3 libnspr4 libgbm1 && npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
   "env": {

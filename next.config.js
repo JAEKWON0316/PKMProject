@@ -1,8 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone', // Docker 배포에 필요한 설정
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['playwright'],
+    serverComponentsExternalPackages: ['playwright-core'],
+  },
+  // 환경 변수 설정
+  env: {
+    PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright',
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
