@@ -25,7 +25,12 @@ export async function parseChatGPTLink(url: string): Promise<{
       `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-linux/chrome`,
       `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-win/chrome.exe`,
       `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium/chrome-linux/chrome`,
-    ];
+      // Ubuntu 20.04 fallback 경로 추가
+      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-linux/chrome`,
+      `/tmp/playwright/chromium-1169/chrome-linux/chrome`,
+      // Playwright 경로 자동 감지 시도
+      process.env.PLAYWRIGHT_BROWSERS_PATH ? undefined : 'chromium'
+    ].filter(Boolean);
     
     console.log('Checking possible executable paths:');
     for (const path of possiblePaths) {
@@ -50,25 +55,31 @@ export async function parseChatGPTLink(url: string): Promise<{
           '--disable-web-security',
           '--disable-features=IsolateOrigins,site-per-process',
           '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage'
         ],
         timeout: 60000, // 60초 타임아웃
-        // 실행 파일 경로 직접 지정
-        executablePath: process.env.PLAYWRIGHT_BROWSERS_PATH 
-          ? `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/headless_shell` 
-          : undefined
+        // 실행 파일 경로는 우선 지정하지 않고 Playwright가 자동 감지하도록 함
+        executablePath: undefined
       });
       console.log('Browser launched successfully with primary path');
     } catch (e) {
-      console.error('Failed to launch with primary path:', e);
+      console.error('Failed to launch with default path:', e);
       browserLaunchError = e;
       
-      // 첫 번째 경로 실패 시 다른 경로 시도
-      for (let i = 1; i < possiblePaths.length; i++) {
+      // 자동 감지 실패 시 다른 경로 시도
+      for (let i = 0; i < possiblePaths.length; i++) {
         try {
+          if (!possiblePaths[i]) continue; // undefined 경로 건너뛰기
+          
           console.log(`Trying alternate path: ${possiblePaths[i]}`);
           browser = await chromium.launch({
             headless: true,
-            args: ['--no-sandbox'],
+            args: [
+              '--no-sandbox', 
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage'
+            ],
             timeout: 60000,
             executablePath: possiblePaths[i]
           });
@@ -80,9 +91,27 @@ export async function parseChatGPTLink(url: string): Promise<{
         }
       }
       
-      // 모든 경로 실패 시 오류 발생
+      // 모든 경로 실패 시 브라우저 재설치 시도
       if (browserLaunchError) {
-        throw new Error(`모든 브라우저 실행 경로 시도 실패: ${browserLaunchError instanceof Error ? browserLaunchError.message : String(browserLaunchError)}`);
+        console.log('모든 경로 시도 실패, 브라우저 재설치 시도 중...');
+        try {
+          // 브라우저 설치 시도
+          const { execSync } = require('child_process');
+          execSync('npx playwright install chromium', { stdio: 'inherit' });
+          console.log('Chromium 재설치 완료, 다시 시도합니다.');
+          
+          // 설치 후 브라우저 실행 재시도
+          browser = await chromium.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+            timeout: 60000
+          });
+          console.log('브라우저 시작 성공 (재설치 후)');
+          browserLaunchError = null;
+        } catch (installError) {
+          console.error('브라우저 재설치 실패:', installError);
+          throw new Error(`모든 브라우저 실행 경로 시도 실패 및 재설치 실패: ${browserLaunchError instanceof Error ? browserLaunchError.message : String(browserLaunchError)}`);
+        }
       }
     }
 
