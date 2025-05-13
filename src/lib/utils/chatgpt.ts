@@ -1,5 +1,86 @@
-import { chromium, Browser, Page } from 'playwright';
+// 서버 전용 컴포넌트/유틸 표시
+'use server';
+
+// Playwright 관련 import 주석 처리
+// import { chromium, Browser, Page } from 'playwright';
 import { Conversation, ChatMessage, ChatSource } from '@/types';
+import path from 'path';
+import fs from 'fs';
+
+// Puppeteer와 Chromium 추가 - 서버 사이드에서만 실행
+// @ts-ignore - @sparticuz/chromium 모듈 타입 선언 문제 해결
+const puppeteer = require('puppeteer-core');
+// @ts-ignore - 타입 오류 무시
+const chromium = require('@sparticuz/chromium');
+
+// 클라이언트 측에서는 실행되지 않도록 함
+if (typeof window !== 'undefined') {
+  throw new Error('This module is server-side only');
+}
+
+// 운영체제 감지
+const isWindows = process.platform === 'win32';
+const isVercel = process.env.VERCEL === '1';
+
+/**
+ * 환경에 맞는 Chromium 실행 경로 가져오기
+ */
+async function getChromiumPath() {
+  try {
+    // Windows 환경인 경우 로컬에서 Chrome 실행 시도
+    if (isWindows) {
+      // Windows 환경에서는 설치된 Chrome 사용 시도
+      const localChromePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+      ];
+      
+      // 존재하는 Chrome 경로 찾기
+      for (const chromePath of localChromePaths) {
+        if (fs.existsSync(chromePath)) {
+          console.log(`Using local Chrome at: ${chromePath}`);
+          return chromePath;
+        }
+      }
+      
+      console.log('No local Chrome installation found, using @sparticuz/chromium fallback');
+    }
+    
+    // @sparticuz/chromium의 executablePath 함수를 사용하여 바이너리 경로 가져오기
+    const execPath = await chromium.executablePath();
+    console.log(`Chromium executable path: ${execPath}`);
+    
+    // Windows에서 로컬 폴더 생성
+    if (isWindows) {
+      const localChromiumPath = path.join(process.cwd(), '.chromium');
+      if (!fs.existsSync(localChromiumPath)) {
+        console.log(`Creating local Chromium directory: ${localChromiumPath}`);
+        fs.mkdirSync(localChromiumPath, { recursive: true });
+      }
+    }
+    
+    // 파일이 실제로 존재하는지 확인
+    if (!fs.existsSync(execPath)) {
+      throw new Error(`Chromium executable not found at path: ${execPath}`);
+    }
+    
+    return execPath;
+  } catch (error) {
+    console.error('Error getting Chromium path:', error);
+    
+    // 오류 발생 시 로컬 Chrome 시도
+    if (isWindows) {
+      const defaultChromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+      if (fs.existsSync(defaultChromePath)) {
+        console.log(`Fallback to local Chrome: ${defaultChromePath}`);
+        return defaultChromePath;
+      }
+    }
+    
+    throw error;
+  }
+}
 
 /**
  * 주어진 ChatGPT 대화 URL에서 대화 내용과 전체 페이지 내용을 스크래핑하는 함수
@@ -11,13 +92,16 @@ export async function parseChatGPTLink(url: string): Promise<{
 }> {
   console.log(`Scraping ChatGPT conversation from URL: ${url}`);
   
-  let browser: Browser | null = null;
+  // let browser: Browser | null = null;
+  let browser: any = null;
   
   try {
     // 브라우저 경로 디버깅 로그
     console.log('=== Browser Path Debug Info ===');
-    console.log('PLAYWRIGHT_BROWSERS_PATH:', process.env.PLAYWRIGHT_BROWSERS_PATH);
+    console.log('CHROMIUM_PATH:', process.env.CHROMIUM_PATH);
     
+    // Playwright 코드 주석 처리
+    /*
     // 가능한 실행 파일 경로들
     const possiblePaths = [
       `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/headless_shell`,
@@ -45,7 +129,7 @@ export async function parseChatGPTLink(url: string): Promise<{
     
     // 첫 번째 경로로 시도
     let browserLaunchError = null;
-    
+  
     // Chromium 브라우저 시작 (headless 모드)
     try {
       console.log('Trying to launch browser with primary path...');
@@ -119,15 +203,32 @@ export async function parseChatGPTLink(url: string): Promise<{
     if (!browser) {
       throw new Error('브라우저를 시작할 수 없습니다. 실행 파일 경로를 확인하세요.');
     }
+    */
 
-    // 브라우저 컨텍스트 및 페이지 생성
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1280, height: 800 },
-      ignoreHTTPSErrors: true,
-    });
+    // puppeteer-core + @sparticuz/chromium 사용하여 브라우저 시작
+    console.log('Launching browser with @sparticuz/chromium...');
     
-    const page = await context.newPage();
+    // 환경에 맞는 Chromium 경로 가져오기
+    const executablePath = await getChromiumPath();
+    console.log(`Using Chromium at: ${executablePath}`);
+    
+    // 브라우저 실행 옵션
+    const options = {
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: true,
+      ignoreHTTPSErrors: true,
+    };
+    
+    browser = await puppeteer.launch(options);
+    console.log('Browser launched successfully with @sparticuz/chromium');
+
+    // 페이지 생성
+    const page = await browser.newPage();
+    
+    // 사용자 에이전트 설정
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
     // 페이지 로드 시도 (여러 번 시도)
     let maxRetries = 3;
@@ -139,7 +240,7 @@ export async function parseChatGPTLink(url: string): Promise<{
         // 모든 리소스를 로드하도록 설정
         await page.goto(url, { 
           timeout: 30000, 
-          waitUntil: 'networkidle' // 모든 리소스가 로드될 때까지 대기
+          waitUntil: 'networkidle0' // 모든 리소스가 로드될 때까지 대기
         });
         loaded = true;
         break;
@@ -176,7 +277,7 @@ export async function parseChatGPTLink(url: string): Promise<{
         throw new Error('로그인이 필요한 페이지입니다. ChatGPT에 로그인 후 다시 시도해주세요.');
       }
     }
-
+    
     // 페이지 내용이 충분히 로드될 때까지 추가 대기
     await page.waitForTimeout(3000);
     
@@ -246,10 +347,9 @@ function extractConversationId(url: string): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-/**
- * 페이지에서 대화 데이터를 추출하는 함수
- */
-async function extractConversationData(page: Page): Promise<{ 
+// Playwright Page 타입을 any로 변경
+// async function extractConversationData(page: Page): Promise<{
+async function extractConversationData(page: any): Promise<{
   title: string; 
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>; 
   metadata: { 
@@ -260,45 +360,45 @@ async function extractConversationData(page: Page): Promise<{
 }> {
   return await page.evaluate(() => {
     console.log('Starting conversation extraction...');
-    
-    // 제목 추출 (여러 방법 시도)
-    let title = '';
-    
-    // 1. h1 태그에서 제목 찾기
-    const h1Element = document.querySelector('h1');
-    if (h1Element && h1Element.textContent) {
-      title = h1Element.textContent.trim();
-    }
-    
-    // 2. 페이지 타이틀에서 제목 찾기
-    if (!title) {
-      const titleElement = document.querySelector('title');
-      if (titleElement && titleElement.textContent) {
-        title = titleElement.textContent
-          .replace(' - ChatGPT', '')
-          .replace(' - OpenAI', '')
-          .trim();
+      
+      // 제목 추출 (여러 방법 시도)
+      let title = '';
+      
+      // 1. h1 태그에서 제목 찾기
+      const h1Element = document.querySelector('h1');
+      if (h1Element && h1Element.textContent) {
+        title = h1Element.textContent.trim();
       }
-    }
-    
-    // 3. 메타 데이터에서 제목 찾기
-    if (!title) {
-      const metaTitle = document.querySelector('meta[property="og:title"]');
-      if (metaTitle) {
-        const content = metaTitle.getAttribute('content');
-        if (content) {
-          title = content.trim();
+      
+      // 2. 페이지 타이틀에서 제목 찾기
+      if (!title) {
+        const titleElement = document.querySelector('title');
+        if (titleElement && titleElement.textContent) {
+          title = titleElement.textContent
+            .replace(' - ChatGPT', '')
+            .replace(' - OpenAI', '')
+            .trim();
         }
       }
-    }
-    
-    // 제목을 찾지 못한 경우 기본값 사용
-    if (!title) {
+      
+      // 3. 메타 데이터에서 제목 찾기
+      if (!title) {
+        const metaTitle = document.querySelector('meta[property="og:title"]');
+        if (metaTitle) {
+          const content = metaTitle.getAttribute('content');
+          if (content) {
+            title = content.trim();
+          }
+        }
+      }
+      
+      // 제목을 찾지 못한 경우 기본값 사용
+      if (!title) {
       title = 'ChatGPT Conversation ' + new Date().toLocaleString();
-    }
-    
-    console.log(`Title extracted: ${title}`);
-    
+      }
+      
+      console.log(`Title extracted: ${title}`);
+      
     // 페이지 전체에서 모든 대화 요소 직접 추출 시도
     // 1. assistant 메시지 찾기
     const assistantElements = document.querySelectorAll('[data-message-author-role="assistant"]');
@@ -436,7 +536,7 @@ async function extractConversationData(page: Page): Promise<{
     }
     
     // 메시지가 없으면 기본 오류 메시지 추가
-    if (messages.length === 0) {
+      if (messages.length === 0) {
       // 최후의 방법: 페이지에서 이전/다음 메시지 패턴 찾기
       try {
         // 일반적인 사용자 입력 패턴 (최소 3개 이상의 단어를 가진 문단)
@@ -459,8 +559,8 @@ async function extractConversationData(page: Page): Promise<{
             .replace(userMessage, '')
             .replace(/Log in|Sign up|Attach|Search|Reason|Voice|By messaging ChatGPT|Skip to content|ChatGPT/g, '')
             .replace(/window\.__oai_.*?;/g, '')
-            .trim();
-            
+          .trim();
+        
           if (remainingText.length > 0) {
             messages.push({
               role: 'assistant',
@@ -469,7 +569,7 @@ async function extractConversationData(page: Page): Promise<{
           }
         } else {
           messages.push({ 
-            role: 'assistant', 
+            role: 'assistant',
             content: '대화 내용을 추출할 수 없습니다. ChatGPT 공유 링크가 유효한지 확인해주세요.' 
           });
         }
@@ -546,21 +646,21 @@ async function extractConversationData(page: Page): Promise<{
     
     // 수정된 메시지로 교체
     messages = correctedMessages;
-    
-    // GPT-4 모델인지 확인
-    const isGPT4 = document.body.innerText.includes('GPT-4') || 
-                 document.body.innerText.includes('gpt-4') ||
-                 document.querySelector('img[alt*="GPT-4"]') !== null;
-    
-    return {
-      title,
-      messages,
-      metadata: {
-        date: new Date().toISOString(),
-        model: isGPT4 ? 'gpt-4' : 'gpt-3.5-turbo',
-        tags: []
-      }
-    };
+      
+      // GPT-4 모델인지 확인
+      const isGPT4 = document.body.innerText.includes('GPT-4') || 
+                    document.body.innerText.includes('gpt-4') ||
+                    document.querySelector('img[alt*="GPT-4"]') !== null;
+      
+      return {
+        title,
+        messages,
+        metadata: {
+          date: new Date().toISOString(),
+          model: isGPT4 ? 'gpt-4' : 'gpt-3.5-turbo',
+          tags: []
+        }
+      };
   }) as { 
     title: string; 
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>; 

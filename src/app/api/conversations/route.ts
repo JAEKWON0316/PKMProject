@@ -34,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
         { status: 400 }
       );
     }
-    
+
     // URL 중복 체크 (Supabase)
     console.log('Checking for URL duplicates...');
     const { exists: urlExists, session: existingSession } = await checkUrlExists(url);
@@ -95,8 +95,8 @@ export async function POST(request: Request): Promise<Response> {
       console.log('No conversations directory yet, skipping local duplicate check');
     }
 
-    // ChatGPT 링크 파싱 (Playwright 기반)
-    console.log('=== Starting Playwright parsing ===');
+    // ChatGPT 링크 파싱 (Playwright 기반) -> Puppeteer로 변경됨
+    console.log('=== Starting Puppeteer-based parsing ===');
     let result;
     try {
       result = await parseChatGPTLink(url);
@@ -297,7 +297,7 @@ model: ${summaryResult.modelUsed || conversation.metadata?.model || 'ChatGPT'}
         
         jsonFilePath = path.join(conversationsDir, `${sanitizedTitle}-${id}.json`);
         await fs.writeFile(jsonFilePath, JSON.stringify(conversationData, null, 2), 'utf-8');
-        console.log(`Saved conversation data to: ${jsonFilePath}`);
+      console.log(`Saved conversation data to: ${jsonFilePath}`);
       } else {
         console.log('Skipped saving JSON file due to duplicate URL');
       }

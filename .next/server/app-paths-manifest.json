@@ -1,1 +1,6 @@
-{}
+{
+  "/page": "app/page.js",
+  "/api/rag/ask/route": "app/api/rag/ask/route.js",
+  "/api/rag/conversations/route": "app/api/rag/conversations/route.js",
+  "/rag/page": "app/rag/page.js"
+}

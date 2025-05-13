@@ -46,7 +46,7 @@ export default function Home() {
           message: data.message || '이미 저장된 대화입니다.'
         })
       } else {
-        setResult(data.data)
+      setResult(data.data)
       }
       
       setUrl('')
@@ -75,7 +75,7 @@ export default function Home() {
               transition={{ delay: 0.2, duration: 0.8 }}
               className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-4"
             >
-              PKM Project
+          PKM Project
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0 }}
@@ -123,8 +123,8 @@ export default function Home() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  ChatGPT 공유 링크
-                </label>
+              ChatGPT 공유 링크
+            </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -132,21 +132,21 @@ export default function Home() {
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                     </svg>
                   </div>
-                  <input
-                    type="url"
-                    id="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://chatgpt.com/share/..."
+            <input
+              type="url"
+              id="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://chatgpt.com/share/..."
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none"
-                    required
-                  />
+              required
+            />
                 </div>
-              </div>
+          </div>
 
-              <button
-                type="submit"
-                disabled={loading}
+          <button
+            type="submit"
+            disabled={loading}
                 className="w-full flex justify-center items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {loading ? (
@@ -165,11 +165,11 @@ export default function Home() {
                     <span>대화 저장</span>
                   </>
                 )}
-              </button>
+          </button>
             </form>
 
             {/* 결과 표시 */}
-            {error && (
+          {error && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -183,11 +183,11 @@ export default function Home() {
                 <div>
                   <p className="font-medium">오류 발생</p>
                   <p className="mt-1">{error}</p>
-                </div>
+            </div>
               </motion.div>
-            )}
+          )}
 
-            {success && (
+          {success && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -204,19 +204,19 @@ export default function Home() {
                   <p className="font-medium">
                     {result?.duplicate ? '중복 감지!' : '대화가 성공적으로 저장되었습니다!'}
                   </p>
-                  {result && (
+              {result && (
                     <div className="mt-2 text-sm">
                       {result.duplicate ? (
                         <p>{result.message || '이미 저장된 대화입니다.'}</p>
                       ) : (
                         <>
                           <p className="mb-1"><span className="font-medium">제목:</span> {result.conversation?.title}</p>
-                          
-                          {result.obsidian && (
+                  
+                  {result.obsidian && (
                             <p className="mb-1"><span className="font-medium">Obsidian 저장:</span> {result.obsidian.path}/{result.obsidian.fileName}</p>
-                          )}
-                          
-                          {result.jsonBackup && (
+                  )}
+                  
+                  {result.jsonBackup && (
                             <p><span className="font-medium">JSON 백업:</span> {result.jsonBackup}</p>
                           )}
                         </>
@@ -225,7 +225,7 @@ export default function Home() {
                   )}
                 </div>
               </motion.div>
-            )}
+              )}
           </motion.div>
         </motion.div>
       </div>

@@ -44,8 +44,8 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // 1. ChatGPT 링크 파싱 (Playwright 기반)
-    console.log('=== Playwright 파싱 시작 ===');
+    // 1. ChatGPT 링크 파싱 (Playwright 기반) -> Puppeteer로 변경됨
+    console.log('=== Puppeteer 기반 파싱 시작 ===');
     let result;
     try {
       result = await parseChatGPTLink(url);
