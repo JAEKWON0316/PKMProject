@@ -281,9 +281,18 @@ export async function parseChatGPTLink(url: string): Promise<{
     // 페이지 내용이 충분히 로드될 때까지 추가 대기
     await page.waitForTimeout(3000);
     
-    // 스크린샷 캡처 (디버깅용)
-    await page.screenshot({ path: 'chatgpt-capture.png' });
-    console.log('Screenshot saved to chatgpt-capture.png');
+    // 스크린샷 캡처 (디버깅용) - Vercel 환경에서는 건너뛰기
+    if (!isVercel) {
+      try {
+        await page.screenshot({ path: 'chatgpt-capture.png' });
+        console.log('Screenshot saved to chatgpt-capture.png');
+      } catch (screenshotError) {
+        console.warn('Unable to save screenshot:', screenshotError);
+        // 스크린샷 실패해도 계속 진행
+      }
+    } else {
+      console.log('Skipping screenshot in Vercel environment (read-only filesystem)');
+    }
     
     // 전체 페이지 HTML 가져오기 - 모든 구조 그대로 유지
     const rawHtml = await page.content();

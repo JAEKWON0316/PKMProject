@@ -6,6 +6,9 @@ import * as path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { checkUrlExists } from '@/utils/supabaseHandler'
 
+// Vercel 환경 감지
+const isVercel = process.env.VERCEL === '1';
+
 export async function POST(request: Request): Promise<Response> {
   try {
     console.log('=== Processing conversation request ===');
@@ -56,43 +59,49 @@ export async function POST(request: Request): Promise<Response> {
     
     // 로컬 conversations 폴더에서도 URL 중복 체크
     const conversationsDir = path.join(process.cwd(), 'conversations');
-    try {
-      // 폴더가 존재하는지 확인
-      await fs.access(conversationsDir);
-      
-      // 모든 JSON 파일 읽기
-      const files = await fs.readdir(conversationsDir);
-      const jsonFiles = files.filter(file => file.endsWith('.json'));
-      
-      // 각 파일에서 URL 확인
-      for (const file of jsonFiles) {
-        try {
-          const filePath = path.join(conversationsDir, file);
-          const content = await fs.readFile(filePath, 'utf-8');
-          const data = JSON.parse(content);
-          
-          if (data.url === url) {
-            console.log(`Duplicate URL found in local file: ${file}`);
-            return NextResponse.json({
-              success: true,
-              duplicate: true,
-              message: '이미 저장된 대화입니다.',
-              data: {
-                id: data.id,
-                title: data.title,
-                url,
-                createdAt: data.createdAt
-              }
-            });
+    
+    // Vercel 환경이 아닌 경우에만 로컬 파일 체크
+    if (!isVercel) {
+      try {
+        // 폴더가 존재하는지 확인
+        await fs.access(conversationsDir);
+        
+        // 모든 JSON 파일 읽기
+        const files = await fs.readdir(conversationsDir);
+        const jsonFiles = files.filter(file => file.endsWith('.json'));
+        
+        // 각 파일에서 URL 확인
+        for (const file of jsonFiles) {
+          try {
+            const filePath = path.join(conversationsDir, file);
+            const content = await fs.readFile(filePath, 'utf-8');
+            const data = JSON.parse(content);
+            
+            if (data.url === url) {
+              console.log(`Duplicate URL found in local file: ${file}`);
+              return NextResponse.json({
+                success: true,
+                duplicate: true,
+                message: '이미 저장된 대화입니다.',
+                data: {
+                  id: data.id,
+                  title: data.title,
+                  url,
+                  createdAt: data.createdAt
+                }
+              });
+            }
+          } catch (e) {
+            // 파일 읽기 오류는 무시하고 계속 진행
+            console.error(`Error checking file ${file}:`, e);
           }
-        } catch (e) {
-          // 파일 읽기 오류는 무시하고 계속 진행
-          console.error(`Error checking file ${file}:`, e);
         }
+      } catch (e) {
+        // 폴더가 없거나 접근할 수 없으면 중복 체크를 건너뛰고 계속 진행
+        console.log('No conversations directory yet, skipping local duplicate check');
       }
-    } catch (e) {
-      // 폴더가 없거나 접근할 수 없으면 중복 체크를 건너뛰고 계속 진행
-      console.log('No conversations directory yet, skipping local duplicate check');
+    } else {
+      console.log('Running in Vercel environment, skipping local file checks');
     }
 
     // ChatGPT 링크 파싱 (Playwright 기반) -> Puppeteer로 변경됨
@@ -153,12 +162,6 @@ export async function POST(request: Request): Promise<Response> {
         .replace(/^-|-$/g, '')
         .substring(0, 100) // 길이 제한
         + '.md';
-      
-      // 옵시디언 ChatGPT 폴더 경로
-      const obsidianFolder = path.join(vaultPath, 'ChatGPT');
-      
-      // 폴더 생성 (없는 경우)
-      await fs.mkdir(obsidianFolder, { recursive: true });
       
       // OpenAI API를 사용하여 대화 내용 요약 생성
       console.log('Generating conversation summary...');
@@ -233,17 +236,6 @@ model: ${summaryResult.modelUsed || conversation.metadata?.model || 'ChatGPT'}
         markdownContent += `\n## 🔑 키워드\n\n${summaryResult.keywords.map(k => `\`${k}\``).join(' ')}\n`;
       }
       
-      // 옵시디언에 마크다운 파일 저장
-      const obsidianFilePath = path.join(obsidianFolder, fileName);
-      await fs.writeFile(obsidianFilePath, markdownContent, 'utf-8');
-      console.log(`Saved markdown content to: ${obsidianFilePath}`);
-      
-      // 원본 텍스트 내용 저장 (HTML 대신)
-      const textFileName = fileName.replace('.md', '-original.txt');
-      const textFilePath = path.join(obsidianFolder, textFileName);
-      await fs.writeFile(textFilePath, rawText, 'utf-8');
-      console.log(`Saved original text content to: ${textFilePath}`);
-      
       // 대화 데이터 생성
       const conversationData = {
         id,
@@ -259,47 +251,85 @@ model: ${summaryResult.modelUsed || conversation.metadata?.model || 'ChatGPT'}
         summary: summaryResult.summary
       };
       
-      // 마지막으로 한번 더 중복 URL 체크 (위에서 진행했지만 다른 프로세스에서 같은 URL이 저장될 수도 있음)
-      let isDuplicate = false;
-      try {
-        const files = await fs.readdir(conversationsDir);
-        const jsonFiles = files.filter(file => file.endsWith('.json'));
-        
-        for (const file of jsonFiles) {
-          try {
-            const filePath = path.join(conversationsDir, file);
-            const content = await fs.readFile(filePath, 'utf-8');
-            const data = JSON.parse(content);
+      // 로컬 파일 저장 부분 - Vercel에서는 스킵
+      let obsidianFilePath = '';
+      let textFilePath = '';
+      let jsonFilePath = '';
+      
+      if (!isVercel) {
+        try {
+          // Obsidian 관련 로직은 로컬에서만 실행
+          if (vaultPath) {
+            // 옵시디언 ChatGPT 폴더 경로
+            const obsidianFolder = path.join(vaultPath, 'ChatGPT');
             
-            if (data.url === url) {
-              console.log(`Skipping JSON save - duplicate URL found in local file: ${file}`);
-              isDuplicate = true;
-              break;
+            // 폴더 생성 (없는 경우)
+            await fs.mkdir(obsidianFolder, { recursive: true });
+            
+            // 옵시디언에 마크다운 파일 저장
+            obsidianFilePath = path.join(obsidianFolder, fileName);
+            await fs.writeFile(obsidianFilePath, markdownContent, 'utf-8');
+            console.log(`Saved markdown content to: ${obsidianFilePath}`);
+            
+            // 원본 텍스트 내용 저장 (HTML 대신)
+            const textFileName = fileName.replace('.md', '-original.txt');
+            textFilePath = path.join(obsidianFolder, textFileName);
+            await fs.writeFile(textFilePath, rawText, 'utf-8');
+            console.log(`Saved original text content to: ${textFilePath}`);
+          } else {
+            console.log('Obsidian vault path not configured, skipping markdown save');
+          }
+          
+          // conversations 디렉토리가 없으면 생성
+          await fs.mkdir(conversationsDir, { recursive: true });
+          
+          // 마지막으로 한번 더 중복 URL 체크 (위에서 진행했지만 다른 프로세스에서 같은 URL이 저장될 수도 있음)
+          let isDuplicate = false;
+          try {
+            const files = await fs.readdir(conversationsDir);
+            const jsonFiles = files.filter(file => file.endsWith('.json'));
+            
+            for (const file of jsonFiles) {
+              try {
+                const filePath = path.join(conversationsDir, file);
+                const content = await fs.readFile(filePath, 'utf-8');
+                const data = JSON.parse(content);
+                
+                if (data.url === url) {
+                  console.log(`Skipping JSON save - duplicate URL found in local file: ${file}`);
+                  isDuplicate = true;
+                  break;
+                }
+              } catch (e) {
+                // 파일 읽기 오류는 무시
+              }
             }
           } catch (e) {
-            // 파일 읽기 오류는 무시
+            // 폴더 접근 오류는 무시
           }
+          
+          // 중복이 아닌 경우에만 JSON 파일 저장
+          if (!isDuplicate) {
+            // 파일명 생성 - 대화 제목과 ID를 포함하여 식별 가능하게 함
+            const sanitizedTitle = conversation.title
+              .toLowerCase()
+              .replace(/[^a-z0-9가-힣]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
+              .substring(0, 100);
+            
+            jsonFilePath = path.join(conversationsDir, `${sanitizedTitle}-${id}.json`);
+            await fs.writeFile(jsonFilePath, JSON.stringify(conversationData, null, 2), 'utf-8');
+            console.log(`Saved conversation data to: ${jsonFilePath}`);
+          } else {
+            console.log('Skipped saving JSON file due to duplicate URL');
+          }
+        } catch (localSaveError) {
+          console.error('Error during local file save:', localSaveError);
+          // 로컬 파일 저장 실패는 무시하고 계속 진행 - 중요 데이터는 DB에 저장되므로
         }
-      } catch (e) {
-        // 폴더 접근 오류는 무시
-      }
-      
-      // 중복이 아닌 경우에만 JSON 파일 저장
-      let jsonFilePath = '';
-      if (!isDuplicate) {
-        // 파일명 생성 - 대화 제목과 ID를 포함하여 식별 가능하게 함
-        const sanitizedTitle = conversation.title
-          .toLowerCase()
-          .replace(/[^a-z0-9가-힣]/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
-          .substring(0, 100);
-        
-        jsonFilePath = path.join(conversationsDir, `${sanitizedTitle}-${id}.json`);
-        await fs.writeFile(jsonFilePath, JSON.stringify(conversationData, null, 2), 'utf-8');
-      console.log(`Saved conversation data to: ${jsonFilePath}`);
       } else {
-        console.log('Skipped saving JSON file due to duplicate URL');
+        console.log('Running in Vercel environment, skipping local file system operations');
       }
       
       // 성공 응답
@@ -307,14 +337,14 @@ model: ${summaryResult.modelUsed || conversation.metadata?.model || 'ChatGPT'}
         success: true,
         data: {
           conversation: conversationData,
-          obsidian: {
+          obsidian: !isVercel ? {
             path: vaultPath,
             fileName,
             filePath: obsidianFilePath,
             textPath: textFilePath,
             contentType: "markdown-formatted"
-          },
-          jsonBackup: jsonFilePath || 'skipped (duplicate URL)',
+          } : { info: 'Skipped in Vercel environment' },
+          jsonBackup: !isVercel ? (jsonFilePath || 'skipped (duplicate URL)') : 'skipped (Vercel environment)',
           summary: summaryResult.summary,
           keywords: summaryResult.keywords
         },

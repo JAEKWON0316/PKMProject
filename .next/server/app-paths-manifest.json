@@ -1,6 +1,6 @@
 {
-  "/page": "app/page.js",
+  "/not-found": "app/not-found.js",
+  "/rag/page": "app/rag/page.js",
   "/api/rag/ask/route": "app/api/rag/ask/route.js",
-  "/api/rag/conversations/route": "app/api/rag/conversations/route.js",
-  "/rag/page": "app/rag/page.js"
+  "/page": "app/page.js"
 }
