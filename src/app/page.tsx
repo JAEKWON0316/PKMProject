@@ -10,6 +10,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [result, setResult] = useState<any>(null)
+  const [saveOptions, setSaveOptions] = useState({
+    saveToSupabase: true,
+    saveToObsidian: true,
+    saveAsJson: true
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,13 +25,17 @@ export default function Home() {
 
     try {
       console.log(`Submitting URL: ${url}`)
+      console.log('Save options:', saveOptions)
       
       const response = await fetch('/api/conversations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ 
+          url,
+          options: saveOptions 
+        }),
       })
 
       const data = await response.json()
@@ -46,7 +55,24 @@ export default function Home() {
           message: data.message || '이미 저장된 대화입니다.'
         })
       } else {
-      setResult(data.data)
+        setResult(data.data)
+        
+        // 성공 페이지로 리다이렉트
+        const conversationData = data.data.conversation;
+        const summary = data.data.summary;
+        const keywords = data.data.keywords;
+        
+        const params = new URLSearchParams({
+          title: conversationData.title || '',
+          url: url,
+          duplicate: 'false',
+          id: conversationData.id || '',
+          summary: summary || '',
+          keywords: keywords ? keywords.join(',') : ''
+        });
+        
+        // 리다이렉트
+        window.location.href = `/success?${params.toString()}`;
       }
       
       setUrl('')
@@ -166,6 +192,42 @@ export default function Home() {
                   </>
                 )}
           </button>
+
+          {/* 저장 옵션 */}
+          <div className="mt-4 space-y-2">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">저장 옵션</div>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={saveOptions.saveToSupabase}
+                  onChange={(e) => setSaveOptions({...saveOptions, saveToSupabase: e.target.checked})}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Supabase에 저장 (벡터 검색용)</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={saveOptions.saveToObsidian}
+                  onChange={(e) => setSaveOptions({...saveOptions, saveToObsidian: e.target.checked})}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Obsidian에 저장 (마크다운)</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={saveOptions.saveAsJson}
+                  onChange={(e) => setSaveOptions({...saveOptions, saveAsJson: e.target.checked})}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>JSON 파일로 백업</span>
+              </label>
+            </div>
+          </div>
             </form>
 
             {/* 결과 표시 */}

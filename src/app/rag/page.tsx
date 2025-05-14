@@ -226,8 +226,6 @@ export default function RagPage() {
                         ) : (
                           <>
                             <p className="mb-1"><span className="font-medium">제목:</span> {result.title}</p>
-                            <p className="mb-1"><span className="font-medium">청크:</span> {result.chunks}개</p>
-                            <p><span className="font-medium">ID:</span> {result.id}</p>
                           </>
                         )}
                       </div>

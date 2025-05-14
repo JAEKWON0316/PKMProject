@@ -1,0 +1,125 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ChatMessage } from '@/types';
+import { SummaryResult } from '@/lib/utils/openai';
+import SaveToObsidianButton from './SaveToObsidianButton';
+
+interface ConversationResultProps {
+  title: string;
+  url: string;
+  messages: ChatMessage[];
+  rawText: string;
+  summary: SummaryResult;
+  duplicate?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export default function ConversationResult({
+  title,
+  url,
+  messages,
+  rawText,
+  summary,
+  duplicate = false,
+  metadata
+}: ConversationResultProps) {
+  const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  return (
+    <div className="my-8 bg-background border rounded-lg shadow-sm overflow-hidden">
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div>
+            <h2 className="text-2xl font-bold">{title}</h2>
+            <p className="text-muted-foreground mt-1">
+              {duplicate ? '이미 저장된 대화입니다.' : '대화 저장이 완료되었습니다.'}
+            </p>
+          </div>
+          
+          {isClient && (
+            <SaveToObsidianButton
+              conversation={{ title, messages, metadata }}
+              summaryResult={summary}
+              rawText={rawText}
+              url={url}
+            />
+          )}
+        </div>
+        
+        <div className="mt-6 space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">요약</h3>
+            <div className="p-4 bg-muted rounded-md">
+              <p>{summary.summary}</p>
+            </div>
+          </div>
+          
+          {summary.keywords && summary.keywords.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">키워드</h3>
+              <div className="flex flex-wrap gap-2">
+                {summary.keywords.map((keyword, index) => (
+                  <span key={index} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div>
+            <h3 className="text-lg font-semibold mb-2">메시지</h3>
+            <div className="border rounded-md overflow-hidden">
+              <div className="max-h-[400px] overflow-y-auto">
+                {messages.map((message, index) => (
+                  <div 
+                    key={index} 
+                    className={`p-4 ${
+                      message.role === 'user' 
+                        ? 'bg-muted/50' 
+                        : 'bg-background'
+                    } ${
+                      index !== messages.length - 1 ? 'border-b' : ''
+                    }`}
+                  >
+                    <div className="font-medium text-sm mb-2">
+                      {message.role === 'user' ? '👤 사용자' : '🤖 어시스턴트'}
+                    </div>
+                    <div className="whitespace-pre-wrap">
+                      {message.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between items-center mt-8">
+            <button
+              className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md text-sm font-medium transition-colors"
+              onClick={() => router.push('/')}
+            >
+              홈으로 돌아가기
+            </button>
+            
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium transition-colors"
+            >
+              원본 대화 보기
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 

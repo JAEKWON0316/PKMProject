@@ -207,175 +207,123 @@ export async function parseChatGPTLink(url: string): Promise<{
 
     // puppeteer-core + @sparticuz/chromium 사용하여 브라우저 시작
     console.log('Launching browser with @sparticuz/chromium...');
-    
+
     // 환경에 맞는 Chromium 경로 가져오기
     const executablePath = await getChromiumPath();
     console.log(`Using Chromium at: ${executablePath}`);
-    
-    // 브라우저 실행 옵션
+
+    // 브라우저 실행 옵션을 더 단순화
     const options = {
-      args: chromium.args.concat([
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
+      args: [
+        '--no-sandbox', 
         '--disable-setuid-sandbox',
-        '--no-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
         '--disable-gpu'
-      ]),
+      ],
       defaultViewport: {
-        width: 1920,
-        height: 1080
+        width: 1280,
+        height: 800
       },
       executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
-      timeout: 60000  // 60초 타임아웃 설정
+      timeout: 30000
     };
-    
-    browser = await puppeteer.launch(options);
-    console.log('Browser launched successfully with @sparticuz/chromium');
 
-    // 페이지 생성
-    const page = await browser.newPage();
-    
-    // 사용자 에이전트 설정
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    
-    // 추가 헤더 설정
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'
-    });
-    
-    // 페이지 로드 시도 (여러 번 시도)
-    let maxRetries = 3;
-    let loaded = false;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`Loading page attempt ${attempt}/${maxRetries}...`);
-        // 모든 리소스를 로드하도록 설정
-        await page.goto(url, { 
-          timeout: 30000, 
-          waitUntil: 'networkidle0' // 모든 리소스가 로드될 때까지 대기
-        });
-        loaded = true;
-        break;
-      } catch (navigationError) {
-        console.error(`Navigation error on attempt ${attempt}:`, navigationError);
-        
-        // 마지막 시도가 아니면 잠시 대기 후 재시도
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
-          throw new Error(`페이지 로드에 실패했습니다: ${navigationError instanceof Error ? navigationError.message : String(navigationError)}`);
+    // 브라우저 인스턴스
+    try {
+      // 브라우저 실행
+      console.log('Attempting to launch browser...');
+      browser = await puppeteer.launch(options);
+      console.log('Browser launched successfully');
+      
+      // 페이지 생성 전에 잠시 대기하여 브라우저가 완전히 초기화되도록 함
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 페이지 생성
+      console.log('Creating page...');
+      const page = await browser.newPage();
+      console.log('Page created successfully');
+      
+      // 페이지 설정
+      await page.setDefaultNavigationTimeout(60000); // 60초
+      await page.setDefaultTimeout(60000);
+      
+      // 사용자 에이전트 설정
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      
+      // 페이지 로드 전에 약간 대기
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 페이지 로드
+      console.log(`Loading URL: ${url}`);
+      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+      console.log('Page loaded successfully');
+      
+      // 페이지 컨텐츠가 렌더링될 시간을 확보
+      console.log('Waiting for content to render...');
+      await page.waitForTimeout(5000);
+      
+      // 전체 페이지 HTML 가져오기
+      const rawHtml = await page.content();
+      console.log(`Raw HTML length: ${rawHtml.length} characters`);
+      
+      // 페이지 텍스트 콘텐츠 가져오기
+      const rawText = await page.evaluate(() => document.body.innerText);
+      console.log(`Raw text length: ${rawText.length} characters`);
+      
+      // 대화 내용 추출 (메시지 구조화)
+      console.log('Extracting conversation data...');
+      const conversationData = await extractConversationData(page);
+
+      // 대화 객체 생성
+      const conversation: Conversation = {
+        id: extractConversationId(url),
+        title: conversationData.title,
+        messages: conversationData.messages as ChatMessage[],
+        createdAt: new Date().toISOString(),
+        source: ChatSource.CHATGPT,
+        metadata: conversationData.metadata
+      };
+
+      // 빈 대화인지 확인
+      if (conversation.messages.length === 0) {
+        throw new Error('대화 내용을 추출할 수 없습니다.');
+      }
+
+      console.log(`Extracted conversation: "${conversation.title}" with ${conversation.messages.length} messages`);
+      
+      // 모든 작업이 완료된 후 브라우저 종료
+      console.log('Closing browser...');
+      await browser.close();
+      console.log('Browser closed successfully');
+      
+      return {
+        conversation,
+        rawHtml,
+        rawText
+      };
+    } catch (error) {
+      console.error('Error during conversation extraction:', error);
+      
+      // 오류 발생 시 브라우저 자원 정리 시도
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.warn('Failed to close browser after error:', closeError);
         }
       }
-    }
-
-    if (!loaded) {
-      throw new Error('페이지 로드에 실패했습니다.');
-    }
-
-    console.log('Page loaded successfully.');
-    
-    // 페이지가 완전히 로드될 때까지 추가로 대기
-    console.log('Waiting for full page load...');
-    try {
-      await page.waitForFunction(
-        () => document.readyState === 'complete',
-        { timeout: 10000 }
-      );
-    } catch (waitError) {
-      console.warn('Page readyState 대기 중 시간 초과:', waitError);
-      // 계속 진행 (일부 컨텐츠라도 크롤링 시도)
-    }
-    
-    // 동적 컨텐츠가 렌더링될 시간을 추가로 확보
-    console.log('Allowing extra time for dynamic content to render...');
-    await page.waitForTimeout(5000);
-    
-    // 로그인 필요 여부 검사
-    if (url.includes('/share/')) {
-      console.log('Shared URL detected, skipping login check');
-    } else {
-      const isActualLoginPage = await page.evaluate(() => {
-        return window.location.href.includes('/login') || 
-               window.location.href.includes('auth0.openai.com') ||
-               window.location.pathname === '/auth/login';
-      });
       
-      if (isActualLoginPage) {
-        console.log('Login page detected.');
-        throw new Error('로그인이 필요한 페이지입니다. ChatGPT에 로그인 후 다시 시도해주세요.');
-      }
+      throw error instanceof Error 
+        ? error 
+        : new Error(`대화 추출 중 오류 발생: ${String(error)}`);
     }
-    
-    // 페이지 내용이 충분히 로드될 때까지 추가 대기
-    console.log('Waiting additional time for content to stabilize...');
-    await page.waitForTimeout(3000);
-    
-    // 스크린샷 캡처 (디버깅용) - Vercel 환경에서는 건너뛰기
-    if (!isVercel) {
-      try {
-        await page.screenshot({ path: 'chatgpt-capture.png', fullPage: true });
-        console.log('Screenshot saved to chatgpt-capture.png');
-      } catch (screenshotError) {
-        console.warn('Unable to save screenshot:', screenshotError);
-        // 스크린샷 실패해도 계속 진행
-      }
-    } else {
-      console.log('Skipping screenshot in Vercel environment (read-only filesystem)');
-    }
-    
-    // 전체 페이지 HTML 가져오기 - 모든 구조 그대로 유지
-    const rawHtml = await page.content();
-    console.log(`Raw HTML length: ${rawHtml.length} characters`);
-    
-    // 페이지 텍스트 콘텐츠 가져오기
-    const rawText = await page.evaluate(() => document.body.innerText);
-    console.log(`Raw text length: ${rawText.length} characters`);
-
-    // 대화 내용 추출 (메시지 구조화)
-    console.log('Extracting conversation data...');
-    const conversationData = await extractConversationData(page);
-
-    // 대화 객체 생성
-    const conversation: Conversation = {
-      id: extractConversationId(url),
-      title: conversationData.title,
-      messages: conversationData.messages as ChatMessage[],
-      createdAt: new Date().toISOString(),
-      source: ChatSource.CHATGPT,
-      metadata: conversationData.metadata
-    };
-
-    // 빈 대화인지 확인
-    if (conversation.messages.length === 0) {
-      throw new Error('대화 내용을 추출할 수 없습니다.');
-    }
-
-    console.log(`Extracted conversation: "${conversation.title}" with ${conversation.messages.length} messages`);
-
-    return {
-      conversation,
-      rawHtml,
-      rawText
-    };
   } catch (error) {
     console.error('Error during conversation extraction:', error);
     throw error instanceof Error 
       ? error 
       : new Error(`대화 추출 중 오류 발생: ${String(error)}`);
-  } finally {
-    // 브라우저 종료 - 리소스 정리
-    if (browser) {
-      await browser.close();
-      console.log('Browser closed.');
-    }
   }
 }
 

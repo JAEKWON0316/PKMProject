@@ -120,6 +120,9 @@ export async function POST(request: Request): Promise<Response> {
         });
       }
       
+      // Identify file system type
+      const isVercel = process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+
       // 5. Obsidian Vault에 마크다운으로 저장
       console.log('Obsidian에 저장 중...');
       const obsidianResult = await saveToObsidian(
@@ -184,17 +187,20 @@ export async function POST(request: Request): Promise<Response> {
       // 성공 응답
       return NextResponse.json({
         success: true,
+        message: '대화 크롤링 및 저장이 완료되었습니다.',
         data: {
           id: sessionData.id,
           title: conversation.title,
           url,
           summary: summaryResult.summary,
-          keywords: summaryResult.keywords,
-          obsidian: {
-            fileName: obsidianResult.fileName
-          },
-          chunks: chunksResult.count
-        },
+          keywords: summaryResult.keywords.join(','),
+          rawText: encodeURIComponent(rawText),
+          messages: encodeURIComponent(JSON.stringify(conversation.messages)),
+          metadata: encodeURIComponent(JSON.stringify({
+            model: summaryResult.modelUsed || conversation.metadata?.model || 'gpt-4',
+            savedAt: new Date().toISOString()
+          }))
+        }
       });
     } catch (processError) {
       console.error('데이터 처리 오류:', processError);
