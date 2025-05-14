@@ -214,11 +214,25 @@ export async function parseChatGPTLink(url: string): Promise<{
     
     // 브라우저 실행 옵션
     const options = {
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
+      args: chromium.args.concat([
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-setuid-sandbox',
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]),
+      defaultViewport: {
+        width: 1920,
+        height: 1080
+      },
       executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
+      timeout: 60000  // 60초 타임아웃 설정
     };
     
     browser = await puppeteer.launch(options);
@@ -229,6 +243,12 @@ export async function parseChatGPTLink(url: string): Promise<{
     
     // 사용자 에이전트 설정
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    // 추가 헤더 설정
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'
+    });
     
     // 페이지 로드 시도 (여러 번 시도)
     let maxRetries = 3;
@@ -262,6 +282,22 @@ export async function parseChatGPTLink(url: string): Promise<{
 
     console.log('Page loaded successfully.');
     
+    // 페이지가 완전히 로드될 때까지 추가로 대기
+    console.log('Waiting for full page load...');
+    try {
+      await page.waitForFunction(
+        () => document.readyState === 'complete',
+        { timeout: 10000 }
+      );
+    } catch (waitError) {
+      console.warn('Page readyState 대기 중 시간 초과:', waitError);
+      // 계속 진행 (일부 컨텐츠라도 크롤링 시도)
+    }
+    
+    // 동적 컨텐츠가 렌더링될 시간을 추가로 확보
+    console.log('Allowing extra time for dynamic content to render...');
+    await page.waitForTimeout(5000);
+    
     // 로그인 필요 여부 검사
     if (url.includes('/share/')) {
       console.log('Shared URL detected, skipping login check');
@@ -279,12 +315,13 @@ export async function parseChatGPTLink(url: string): Promise<{
     }
     
     // 페이지 내용이 충분히 로드될 때까지 추가 대기
+    console.log('Waiting additional time for content to stabilize...');
     await page.waitForTimeout(3000);
     
     // 스크린샷 캡처 (디버깅용) - Vercel 환경에서는 건너뛰기
     if (!isVercel) {
       try {
-        await page.screenshot({ path: 'chatgpt-capture.png' });
+        await page.screenshot({ path: 'chatgpt-capture.png', fullPage: true });
         console.log('Screenshot saved to chatgpt-capture.png');
       } catch (screenshotError) {
         console.warn('Unable to save screenshot:', screenshotError);
@@ -296,9 +333,11 @@ export async function parseChatGPTLink(url: string): Promise<{
     
     // 전체 페이지 HTML 가져오기 - 모든 구조 그대로 유지
     const rawHtml = await page.content();
+    console.log(`Raw HTML length: ${rawHtml.length} characters`);
     
     // 페이지 텍스트 콘텐츠 가져오기
     const rawText = await page.evaluate(() => document.body.innerText);
+    console.log(`Raw text length: ${rawText.length} characters`);
 
     // 대화 내용 추출 (메시지 구조화)
     console.log('Extracting conversation data...');
@@ -370,85 +409,108 @@ async function extractConversationData(page: any): Promise<{
   return await page.evaluate(() => {
     console.log('Starting conversation extraction...');
       
-      // 제목 추출 (여러 방법 시도)
-      let title = '';
+    // 디버깅 정보
+    const pageInfo = {
+      url: window.location.href,
+      title: document.title,
+      bodyText: document.body.innerText.length,
+    };
+    console.log('Page info:', JSON.stringify(pageInfo));
       
-      // 1. h1 태그에서 제목 찾기
-      const h1Element = document.querySelector('h1');
-      if (h1Element && h1Element.textContent) {
-        title = h1Element.textContent.trim();
+    // 제목 추출 (여러 방법 시도)
+    let title = '';
+    
+    // 1. h1 태그에서 제목 찾기
+    const h1Element = document.querySelector('h1');
+    if (h1Element && h1Element.textContent) {
+      title = h1Element.textContent.trim();
+    }
+    
+    // 2. 페이지 타이틀에서 제목 찾기
+    if (!title) {
+      const titleElement = document.querySelector('title');
+      if (titleElement && titleElement.textContent) {
+        title = titleElement.textContent
+          .replace(' - ChatGPT', '')
+          .replace(' - OpenAI', '')
+          .trim();
       }
-      
-      // 2. 페이지 타이틀에서 제목 찾기
-      if (!title) {
-        const titleElement = document.querySelector('title');
-        if (titleElement && titleElement.textContent) {
-          title = titleElement.textContent
-            .replace(' - ChatGPT', '')
-            .replace(' - OpenAI', '')
-            .trim();
+    }
+    
+    // 3. 메타 데이터에서 제목 찾기
+    if (!title) {
+      const metaTitle = document.querySelector('meta[property="og:title"]');
+      if (metaTitle) {
+        const content = metaTitle.getAttribute('content');
+        if (content) {
+          title = content.trim();
         }
       }
-      
-      // 3. 메타 데이터에서 제목 찾기
-      if (!title) {
-        const metaTitle = document.querySelector('meta[property="og:title"]');
-        if (metaTitle) {
-          const content = metaTitle.getAttribute('content');
-          if (content) {
-            title = content.trim();
-          }
-        }
-      }
-      
-      // 제목을 찾지 못한 경우 기본값 사용
-      if (!title) {
+    }
+    
+    // 제목을 찾지 못한 경우 기본값 사용
+    if (!title) {
       title = 'ChatGPT Conversation ' + new Date().toLocaleString();
-      }
-      
-      console.log(`Title extracted: ${title}`);
-      
+    }
+    
+    console.log(`Title extracted: ${title}`);
+    
     // 페이지 전체에서 모든 대화 요소 직접 추출 시도
-    // 1. assistant 메시지 찾기
-    const assistantElements = document.querySelectorAll('[data-message-author-role="assistant"]');
+    // 1. assistant 메시지 찾기 (여러 선택자 시도)
+    let assistantElements = document.querySelectorAll('[data-message-author-role="assistant"]');
     console.log(`[DEBUG] Found ${assistantElements.length} assistant elements by attribute`);
     
-    // 2. user 메시지 찾기 (여러 방법 시도)
-    // 명시적인 user 역할 속성 찾기
-    const userByAttrElements = document.querySelectorAll('[data-message-author-role="user"]');
-    console.log(`[DEBUG] Found ${userByAttrElements.length} user elements by attribute`);
-    
-    // 대안: 특정 클래스와 위치로 user 메시지 추론
-    let userElements: Element[] = [];
-    
-    // 대화 메시지를 저장할 배열
-    let messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
-    
-    if (userByAttrElements.length === 0) {
-      // 여러 가능한 사용자 메시지 컨테이너 선택자 시도
-      for (const selector of [
-        '.whitespace-pre-wrap:not([data-message-author-role])', 
-        '.text-message:not([data-message-author-role])',
-        '.chat-message[role="user"]',
-        '.chat-message-user',
-        '.message-user',
-        '.human-message'
-      ]) {
-        const candidates = document.querySelectorAll(selector);
-        console.log(`[DEBUG] Found ${candidates.length} potential user elements with selector: ${selector}`);
-        
-        if (candidates.length > 0) {
-          userElements = Array.from(candidates);
+    // 보조 선택자 시도
+    if (assistantElements.length === 0) {
+      const potentialSelectors = [
+        '.markdown.prose', // 일반적인 ChatGPT 응답 스타일
+        '.chat-message[data-role="assistant"]',
+        '.chat-message-assistant',
+        '.assistant-message',
+        '[data-role="assistant"]',
+        'div[role="region"] > div > div:nth-child(even)', // 짝수 번째 메시지가 assistant인 경우
+      ];
+      
+      for (const selector of potentialSelectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          console.log(`[DEBUG] Found ${elements.length} assistant elements with selector: ${selector}`);
+          assistantElements = elements;
           break;
         }
       }
-    } else {
-      userElements = Array.from(userByAttrElements);
     }
     
-    console.log(`[DEBUG] Total user elements: ${userElements.length}`);
+    // 2. user 메시지 찾기 (여러 방법 시도)
+    // 명시적인 user 역할 속성 찾기
+    let userElements = Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
+    console.log(`[DEBUG] Found ${userElements.length} user elements by attribute`);
+    
+    // 대안 선택자 시도
+    if (userElements.length === 0) {
+      const potentialUserSelectors = [
+        '.chat-message[data-role="user"]',
+        '.chat-message-user',
+        '.user-message',
+        '[data-role="user"]',
+        'div[role="region"] > div > div:nth-child(odd)', // 홀수 번째 메시지가 user인 경우
+      ];
+      
+      for (const selector of potentialUserSelectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          console.log(`[DEBUG] Found ${elements.length} user elements with selector: ${selector}`);
+          userElements = Array.from(elements);
+          break;
+        }
+      }
+    }
+    
+    console.log(`[DEBUG] Final count - Assistant: ${assistantElements.length}, User: ${userElements.length}`);
     
     // 대화 수집
+    let messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+    
     if (assistantElements.length > 0 && userElements.length > 0) {
       // HTML 구조에서 모든 대화 요소 수집 및 순서 결정
       const conversationElements: Array<{
@@ -545,7 +607,7 @@ async function extractConversationData(page: any): Promise<{
     }
     
     // 메시지가 없으면 기본 오류 메시지 추가
-      if (messages.length === 0) {
+    if (messages.length === 0) {
       // 최후의 방법: 페이지에서 이전/다음 메시지 패턴 찾기
       try {
         // 일반적인 사용자 입력 패턴 (최소 3개 이상의 단어를 가진 문단)
