@@ -3,27 +3,37 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChatMessage } from '@/types';
-import { SummaryResult } from '@/lib/utils/openai';
 import SaveToObsidianButton from './SaveToObsidianButton';
 
-interface ConversationResultProps {
+// 로컬 타입 정의
+interface SummaryData {
+  summary: string;
+  keywords: string[];
+  modelUsed?: string;
+}
+
+export interface ConversationResultProps {
   title: string;
   url: string;
-  messages: ChatMessage[];
+  id?: string;
   rawText: string;
-  summary: SummaryResult;
+  summaryResult: SummaryData;
   duplicate?: boolean;
-  metadata?: Record<string, any>;
+  conversation: {
+    title: string;
+    messages: ChatMessage[];
+    metadata?: Record<string, any>;
+  };
 }
 
 export default function ConversationResult({
   title,
   url,
-  messages,
+  id,
   rawText,
-  summary,
+  summaryResult,
   duplicate = false,
-  metadata
+  conversation
 }: ConversationResultProps) {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
@@ -45,8 +55,8 @@ export default function ConversationResult({
           
           {isClient && (
             <SaveToObsidianButton
-              conversation={{ title, messages, metadata }}
-              summaryResult={summary}
+              conversation={conversation}
+              summaryResult={summaryResult}
               rawText={rawText}
               url={url}
             />
@@ -57,15 +67,15 @@ export default function ConversationResult({
           <div>
             <h3 className="text-lg font-semibold mb-2">요약</h3>
             <div className="p-4 bg-muted rounded-md">
-              <p>{summary.summary}</p>
+              <p>{summaryResult.summary}</p>
             </div>
           </div>
           
-          {summary.keywords && summary.keywords.length > 0 && (
+          {summaryResult.keywords && summaryResult.keywords.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-2">키워드</h3>
               <div className="flex flex-wrap gap-2">
-                {summary.keywords.map((keyword, index) => (
+                {summaryResult.keywords.map((keyword, index) => (
                   <span key={index} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
                     {keyword}
                   </span>
@@ -78,7 +88,7 @@ export default function ConversationResult({
             <h3 className="text-lg font-semibold mb-2">메시지</h3>
             <div className="border rounded-md overflow-hidden">
               <div className="max-h-[400px] overflow-y-auto">
-                {messages.map((message, index) => (
+                {conversation.messages.map((message, index) => (
                   <div 
                     key={index} 
                     className={`p-4 ${
@@ -86,7 +96,7 @@ export default function ConversationResult({
                         ? 'bg-muted/50' 
                         : 'bg-background'
                     } ${
-                      index !== messages.length - 1 ? 'border-b' : ''
+                      index !== conversation.messages.length - 1 ? 'border-b' : ''
                     }`}
                   >
                     <div className="font-medium text-sm mb-2">

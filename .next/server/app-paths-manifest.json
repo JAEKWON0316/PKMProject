@@ -1,5 +1,6 @@
 {
-  "/rag/page": "app/rag/page.js",
+  "/success/page": "app/success/page.js",
   "/page": "app/page.js",
-  "/success/page": "app/success/page.js"
+  "/rag/page": "app/rag/page.js",
+  "/api/rag/ask/route": "app/api/rag/ask/route.js"
 }

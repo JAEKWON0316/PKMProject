@@ -1,3 +1,5 @@
+// import { SummaryResult } from '@/lib/utils/openai';
+
 export enum ChatSource {
   CHATGPT = 'chatgpt',
   USER_INPUT = 'user_input',
@@ -7,6 +9,8 @@ export enum ChatSource {
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  name?: string;
+  function_call?: any;
 }
 
 export interface Conversation {
@@ -34,11 +38,13 @@ export interface Settings {
   defaultTags: string[];
 }
 
-export type ApiResponse<T> = {
+export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
-};
+  message?: string;
+  duplicate?: boolean;
+}
 
 export interface SummaryResult {
   summary: string;
@@ -56,11 +62,11 @@ export interface ChatChunk {
 }
 
 export interface ChatSession {
-  id: string;
-  title: string;
-  url: string;
-  summary: string;
-  messages: ChatMessage[];
+  id?: string;
+  title?: string;
+  url?: string;
+  summary?: string;
+  messages?: ChatMessage[];
   metadata?: Record<string, any>;
   created_at?: string;
   embedding?: number[];
@@ -76,4 +82,11 @@ export interface RagSource {
 export interface RagResponse {
   answer: string;
   sources: RagSource[];
+}
+
+export interface SaveOptions {
+  saveToSupabase?: boolean;
+  saveToObsidian?: boolean;
+  saveAsJson?: boolean;
+  skipDuplicateCheck?: boolean;
 } 

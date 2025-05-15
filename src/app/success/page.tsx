@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import ConversationResult from '@/components/ConversationResult';
 import { getChatSessionById } from '@/utils/supabaseHandler';
-import { ChatMessage } from '@/types';
+import { ChatMessage, ChatSession } from '@/types';
 
 interface PageProps {
   searchParams: {
@@ -16,66 +16,60 @@ interface PageProps {
 
 export default async function SuccessPage({ searchParams }: PageProps) {
   // 필수 파라미터 확인
-  const { title, url, id } = searchParams;
+  const { id } = searchParams;
   
-  if (!title || !url) {
+  // ID가 없으면 메인 페이지로 리다이렉트
+  if (!id) {
     redirect('/');
   }
   
-  // 파라미터 파싱
-  const isDuplicate = searchParams.duplicate === 'true';
-  
-  let parsedSummary = {
-    summary: searchParams.summary || '요약이 제공되지 않았습니다.',
-    keywords: searchParams.keywords ? searchParams.keywords.split(',') : [],
-    modelUsed: 'gpt-4.1-nano'
-  };
-  
-  let parsedMessages: ChatMessage[] = [];
-  let rawText: string = '';
-  let parsedMetadata: Record<string, any> = {};
-  
-  // id가 있으면 Supabase에서 세션 데이터 가져오기
-  if (id) {
-    try {
-      const sessionData = await getChatSessionById(id);
-      if (sessionData) {
-        // URL 파라미터로 받은 요약이 없을 경우에만 DB에서 가져온 요약 사용
-        if (!searchParams.summary && sessionData.summary) {
-          parsedSummary.summary = sessionData.summary;
-        }
-        
-        // DB에 저장된 메시지 사용
-        parsedMessages = sessionData.messages || [];
-        
-        // 메타데이터 사용
-        parsedMetadata = sessionData.metadata || {};
-      }
-    } catch (error) {
-      console.error('세션 데이터 로드 오류:', error);
-      
-      // 오류가 발생해도 기본 정보는 표시할 수 있도록 처리
-      // Supabase에 저장 옵션을 선택하지 않은 경우 등에 대비
-      parsedMessages = [{
-        role: 'system',
-        content: '세션 데이터를 로드할 수 없습니다. Supabase에 데이터가 저장되지 않았거나 다른 문제가 발생했습니다.'
-      }];
+  try {
+    // Supabase에서 세션 데이터 가져오기
+    const sessionData = await getChatSessionById(id);
+    
+    if (!sessionData) {
+      // ID로 데이터를 찾을 수 없으면 메인 페이지로 리다이렉트
+      redirect('/');
     }
+    
+    // 검색 매개변수에서 중복 여부 확인
+    const isDuplicate = searchParams.duplicate === 'true';
+    
+    // 메타데이터에서 요약 및 키워드 추출
+    const summary = sessionData.summary || '요약이 제공되지 않았습니다.';
+    const keywords = (sessionData.metadata?.keywords || []) as string[];
+    
+    const url = sessionData.url || '';
+    const title = sessionData.title || '대화';
+    const messages = sessionData.messages || [];
+    const metadata = sessionData.metadata || {};
+    
+    const summaryResult = {
+      summary,
+      keywords
+    };
+    
+    // 화면에 표시할 ConversationResult 컴포넌트 반환
+    return (
+      <main className="container mx-auto py-8 px-4">
+        <ConversationResult 
+          title={title}
+          url={url}
+          id={id}
+          duplicate={isDuplicate}
+          summaryResult={summaryResult}
+          rawText={messages.map(msg => `[${msg.role}]: ${msg.content}`).join('\n\n')}
+          conversation={{
+            title,
+            messages: messages as ChatMessage[],
+            metadata
+          }}
+        />
+      </main>
+    );
+  } catch (error) {
+    console.error('세션 데이터 가져오기 오류:', error);
+    // 오류 발생 시 메인 페이지로 리다이렉트
+    redirect('/');
   }
-  
-  return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">대화 저장 완료</h1>
-      
-      <ConversationResult
-        title={title}
-        url={url}
-        messages={parsedMessages}
-        rawText={rawText}
-        summary={parsedSummary}
-        duplicate={isDuplicate}
-        metadata={parsedMetadata}
-      />
-    </div>
-  );
 } 

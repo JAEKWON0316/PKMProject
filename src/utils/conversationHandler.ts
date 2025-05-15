@@ -2,6 +2,7 @@ import { parseChatGPTLink } from '@/lib/utils/chatgpt';
 import { summarizeConversation, summarizeLongConversation } from '@/lib/utils/openai';
 import { insertChatSession, processAndInsertChunks, checkUrlExists } from '@/utils/supabaseHandler';
 import { saveToObsidian } from '@/utils/automation';
+import { isVercelEnv } from '@/utils/fileSystemAccess';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -114,19 +115,23 @@ export async function saveConversation(
       );
     }
 
-    // Obsidian에 저장
-    if (options.saveToObsidian) {
+    // Obsidian에 저장 (배포 환경에서는 비활성화)
+    if (options.saveToObsidian && !isVercelEnv()) {
       console.log('Obsidian에 저장 중...');
+      const isRerun = options.skipDuplicateCheck || false;
       saveResults.obsidian = await saveToObsidian(
         conversation,
         summaryResult,
         rawText,
-        url
+        url,
+        isRerun
       );
+    } else if (options.saveToObsidian && isVercelEnv()) {
+      console.log('배포 환경에서는 Obsidian 저장이 비활성화되었습니다.');
     }
 
-    // JSON 파일로 백업
-    if (options.saveAsJson && !isVercel) {
+    // JSON 파일로 백업 (배포 환경에서는 비활성화)
+    if (options.saveAsJson && !isVercelEnv()) {
       console.log('JSON 파일로 백업 중...');
       saveResults.json = await saveAsJsonFile(
         conversation.title,
@@ -135,6 +140,8 @@ export async function saveConversation(
         url,
         summaryResult
       );
+    } else if (options.saveAsJson && isVercelEnv()) {
+      console.log('배포 환경에서는 JSON 백업이 비활성화되었습니다.');
     }
 
     return {

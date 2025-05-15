@@ -45,6 +45,7 @@ async function crawlAndSave(id: string, url: string) {
     if (result.duplicate) {
       console.log(`URL 중복 감지: ${url}`);
       
+      // 최소한의 필수 정보만 URL에 포함
       const params = new URLSearchParams({
         title: result.title || '대화',
         url,
@@ -55,14 +56,9 @@ async function crawlAndSave(id: string, url: string) {
       redirect(`/success?${params.toString()}`);
     }
     
-    // 성공 응답 및 리다이렉트 - 큰 데이터를 URL에 담지 않고 필수 정보만 전달
+    // 성공 응답 및 리다이렉트 - ID만 전달하고 나머지는 서버에서 조회
     const params = new URLSearchParams({
-      title: result.title || '',
-      url,
-      duplicate: 'false',
       id: result.id || '',
-      summary: result.summary || '',
-      keywords: result.keywords?.join(',') || ''
     });
     
     // 리다이렉트
@@ -70,10 +66,9 @@ async function crawlAndSave(id: string, url: string) {
   } catch (error) {
     console.error('크롤링 오류:', error);
     
-    // 오류 발생 시 오류 페이지로 리다이렉트
+    // 오류 발생 시 오류 페이지로 리다이렉트 - 오류 메시지만 전달
     const params = new URLSearchParams({
-      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-      url: url || ''
+      error: error instanceof Error ? error.message.substring(0, 150) : '알 수 없는 오류가 발생했습니다.',
     });
     
     redirect(`/error?${params.toString()}`);

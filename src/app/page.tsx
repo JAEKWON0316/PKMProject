@@ -10,10 +10,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [result, setResult] = useState<any>(null)
-  const [saveOptions, setSaveOptions] = useState({
+  const [saveOptions] = useState({
     saveToSupabase: true,
-    saveToObsidian: true,
-    saveAsJson: true
+    saveToObsidian: false,
+    saveAsJson: false
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,20 +59,15 @@ export default function Home() {
         
         // 성공 페이지로 리다이렉트
         const conversationData = data.data.conversation;
-        const summary = data.data.summary;
-        const keywords = data.data.keywords;
         
-        const params = new URLSearchParams({
-          title: conversationData.title || '',
-          url: url,
-          duplicate: 'false',
-          id: conversationData.id || '',
-          summary: summary || '',
-          keywords: keywords ? keywords.join(',') : ''
+        // 디버깅용 로그 추가
+        console.log('Redirecting to success page with data:', {
+          id: conversationData?.id || 'ID_MISSING', 
+          dataFull: JSON.stringify(data.data)
         });
         
-        // 리다이렉트
-        window.location.href = `/success?${params.toString()}`;
+        // ID만 전달하여 URL 파라미터 크기 최소화
+        window.location.href = `/success?id=${conversationData?.id || ''}`;
       }
       
       setUrl('')
@@ -101,7 +96,7 @@ export default function Home() {
               transition={{ delay: 0.2, duration: 0.8 }}
               className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-4"
             >
-          PKM Project
+              PKM Project
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0 }}
@@ -118,26 +113,23 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.5 }}
-            className="flex justify-center gap-4 mb-16"
+            className="flex justify-center gap-4 mb-8"
           >
             <Link 
               href="/rag" 
-              className="group relative overflow-hidden px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <span className="relative z-10 flex items-center gap-3 text-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12H3M16 6l6 6-6 6"/></svg>
-                벡터 검색 시스템 사용하기
-              </span>
+              <span className="relative z-10">RAG 벡터 검색</span>
               <motion.span 
                 className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                initial={{ x: "-100%" }}
+                initial={{ x: "100%" }}
                 whileHover={{ x: 0 }}
                 transition={{ type: "spring", stiffness: 100, damping: 15 }}
               ></motion.span>
             </Link>
           </motion.div>
 
-          {/* 폼 컨테이너 */}
+          {/* URL 입력 폼 */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -149,8 +141,8 @@ export default function Home() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              ChatGPT 공유 링크
-            </label>
+                  ChatGPT 공유 링크
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -158,136 +150,57 @@ export default function Home() {
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                     </svg>
                   </div>
-            <input
-              type="url"
-              id="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://chatgpt.com/share/..."
+                  <input
+                    type="url"
+                    id="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://chatgpt.com/share/..."
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none"
-              required
-            />
+                    required
+                  />
                 </div>
-          </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  ChatGPT에서 공유한 링크를 입력하세요.
+                </p>
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-                className="w-full flex justify-center items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>처리 중...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                    </svg>
-                    <span>대화 저장</span>
-                  </>
-                )}
-          </button>
-
-          {/* 저장 옵션 */}
-          <div className="mt-4 space-y-2">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">저장 옵션</div>
-            <div className="flex flex-col gap-2">
-              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={saveOptions.saveToSupabase}
-                  onChange={(e) => setSaveOptions({...saveOptions, saveToSupabase: e.target.checked})}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span>Supabase에 저장 (벡터 검색용)</span>
-              </label>
-              
-              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={saveOptions.saveToObsidian}
-                  onChange={(e) => setSaveOptions({...saveOptions, saveToObsidian: e.target.checked})}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span>Obsidian에 저장 (마크다운)</span>
-              </label>
-              
-              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={saveOptions.saveAsJson}
-                  onChange={(e) => setSaveOptions({...saveOptions, saveAsJson: e.target.checked})}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span>JSON 파일로 백업</span>
-              </label>
-            </div>
-          </div>
-            </form>
-
-            {/* 결과 표시 */}
-          {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <div>
-                  <p className="font-medium">오류 발생</p>
-                  <p className="mt-1">{error}</p>
-            </div>
-              </motion.div>
-          )}
-
-          {success && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`mt-6 p-4 ${result?.duplicate ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'} rounded-lg border flex items-start`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {result?.duplicate ? (
-                    <><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></>
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      처리 중...
+                    </>
                   ) : (
-                    <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></>
+                    '대화 저장하기'
                   )}
-                </svg>
-                <div>
-                  <p className="font-medium">
-                    {result?.duplicate ? '중복 감지!' : '대화가 성공적으로 저장되었습니다!'}
-                  </p>
-              {result && (
-                    <div className="mt-2 text-sm">
-                      {result.duplicate ? (
-                        <p>{result.message || '이미 저장된 대화입니다.'}</p>
-                      ) : (
-                        <>
-                          <p className="mb-1"><span className="font-medium">제목:</span> {result.conversation?.title}</p>
-                  
-                  {result.obsidian && (
-                            <p className="mb-1"><span className="font-medium">Obsidian 저장:</span> {result.obsidian.path}/{result.obsidian.fileName}</p>
-                  )}
-                  
-                  {result.jsonBackup && (
-                            <p><span className="font-medium">JSON 백업:</span> {result.jsonBackup}</p>
-                          )}
-                        </>
-                      )}
-                    </div>
+                </button>
+              </div>
+              
+              {error && (
+                <div className="p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg">
+                  {error}
+                </div>
+              )}
+              
+              {success && !error && result && (
+                <div className="p-3 bg-green-100 border border-green-200 text-green-700 rounded-lg">
+                  {result.duplicate ? (
+                    <p>이미 저장된 대화입니다.</p>
+                  ) : (
+                    <p>대화가 성공적으로 저장되었습니다.</p>
                   )}
                 </div>
-              </motion.div>
               )}
+            </form>
           </motion.div>
         </motion.div>
       </div>

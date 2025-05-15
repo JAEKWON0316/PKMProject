@@ -1,5 +1,11 @@
 import { ChatMessage } from '@/types';
-import { SummaryResult } from '@/lib/utils/openai';
+
+// 내부 타입 정의 (자체 SummaryResult 정의)
+interface SummaryData {
+  summary: string;
+  keywords: string[];
+  modelUsed?: string;
+}
 
 /**
  * File System Access API 지원 여부를 확인합니다.
@@ -19,9 +25,17 @@ export function isBrowser(): boolean {
 
 /**
  * Vercel 배포 환경에서 실행 중인지 확인합니다.
+ * 클라이언트 사이드에서도 동작할 수 있도록 수정
  */
 export function isVercelEnv(): boolean {
-  return process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+  if (typeof window === 'undefined') {
+    // 서버 사이드에서의 확인
+    return process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+  } else {
+    // 클라이언트 사이드에서의 확인
+    return window.location.hostname.includes('vercel.app') || 
+           window.location.hostname === 'localhost' && window.location.port === '3000';
+  }
 }
 
 /**
@@ -202,7 +216,7 @@ export async function saveConversationToObsidianVault(
     messages: ChatMessage[];
     metadata?: Record<string, any>;
   },
-  summaryResult: SummaryResult,
+  summaryResult: SummaryData,
   rawText: string,
   url: string
 ): Promise<{ success: boolean; files: string[] }> {
@@ -227,7 +241,7 @@ export async function saveConversationToObsidianVault(
     // 태그 목록 준비 (요약에서 추출한 키워드 + ChatGPT 모델)
     const tags = [
       ...(summaryResult.keywords || []),
-      conversation.metadata?.model || 'gpt-4.1-nano'
+      conversation.metadata?.model || summaryResult.modelUsed || 'gpt-4.1-nano'
     ].filter(Boolean); // 빈 값 제거
     
     // YAML 프론트매터 생성
@@ -236,7 +250,7 @@ title: ${conversation.title}
 date: ${new Date().toISOString()}
 source: ${url}
 tags: [${tags.map(tag => `"${tag}"`).join(', ')}]
-model: ${conversation.metadata?.model || 'gpt-4.1-nano'}
+model: ${conversation.metadata?.model || summaryResult.modelUsed || 'gpt-4.1-nano'}
 ---
 
 `;
@@ -289,7 +303,7 @@ model: ${conversation.metadata?.model || 'gpt-4.1-nano'}
         messages: conversation.messages,
         metadata: {
           ...(conversation.metadata || {}),
-          model: conversation.metadata?.model || 'gpt-4.1-nano',
+          model: conversation.metadata?.model || summaryResult.modelUsed || 'gpt-4.1-nano',
           savedAt: new Date().toISOString()
         },
         createdAt: new Date().toISOString()
@@ -339,7 +353,7 @@ export function downloadMarkdownFile(
     messages: ChatMessage[];
     metadata?: Record<string, any>;
   },
-  summaryResult: SummaryResult,
+  summaryResult: SummaryData,
   url: string
 ): void {
   if (!isBrowser()) return;
@@ -347,7 +361,7 @@ export function downloadMarkdownFile(
   // 태그 목록 준비 (요약에서 추출한 키워드 + ChatGPT 모델)
   const tags = [
     ...(summaryResult.keywords || []),
-    conversation.metadata?.model || 'gpt-4.1-nano'
+    conversation.metadata?.model || summaryResult.modelUsed || 'gpt-4.1-nano'
   ].filter(Boolean); // 빈 값 제거
   
   // YAML 프론트매터 생성
@@ -356,7 +370,7 @@ title: ${conversation.title}
 date: ${new Date().toISOString()}
 source: ${url}
 tags: [${tags.map(tag => `"${tag}"`).join(', ')}]
-model: ${conversation.metadata?.model || 'gpt-4.1-nano'}
+model: ${conversation.metadata?.model || summaryResult.modelUsed || 'gpt-4.1-nano'}
 ---
 
 `;
@@ -430,7 +444,7 @@ export function downloadJsonFile(
     messages: ChatMessage[];
     metadata?: Record<string, any>;
   },
-  summaryResult: SummaryResult,
+  summaryResult: SummaryData,
   url: string
 ): void {
   if (!isBrowser()) return;
@@ -445,7 +459,7 @@ export function downloadJsonFile(
       messages: conversation.messages,
       metadata: {
         ...(conversation.metadata || {}),
-        model: conversation.metadata?.model || 'gpt-4.1-nano',
+        model: conversation.metadata?.model || summaryResult.modelUsed || 'gpt-4.1-nano',
         savedAt: new Date().toISOString()
       },
       createdAt: new Date().toISOString()

@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -15,10 +14,9 @@ import {
   saveConversationToObsidianVault,
   downloadMarkdownFile,
   downloadJsonFile,
-  isVercelEnv
+  isBrowser
 } from '@/utils/fileSystemAccess';
 import { ChatMessage } from '@/types';
-import { SummaryResult } from '@/lib/utils/openai';
 import {
   Dialog,
   DialogContent,
@@ -26,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -37,6 +34,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/components/ui/use-toast";
+
+// 로컬 타입 정의
+interface SummaryData {
+  summary: string;
+  keywords: string[];
+  modelUsed?: string;
+}
 
 interface SaveToObsidianButtonProps {
   conversation: {
@@ -44,7 +49,7 @@ interface SaveToObsidianButtonProps {
     messages: ChatMessage[];
     metadata?: Record<string, any>;
   };
-  summaryResult: SummaryResult;
+  summaryResult: SummaryData;
   rawText: string;
   url: string;
 }
@@ -62,8 +67,10 @@ export default function SaveToObsidianButton({
     files?: string[];
   }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
   
-  const fsApiSupported = typeof window !== 'undefined' && isFileSystemAccessSupported();
+  // File System API 지원 확인 - 모든 브라우저에서 클라이언트 사이드로 동작하도록 변경
+  const fsApiSupported = isBrowser() && isFileSystemAccessSupported();
   
   const handleSaveToObsidian = async () => {
     setIsLoading(true);
@@ -84,11 +91,25 @@ export default function SaveToObsidianButton({
           : '파일 저장에 실패했습니다.',
         files: result.files
       });
+      
+      if (result.success) {
+        toast({
+          title: "파일 저장 성공!",
+          description: `${result.files.length}개의 파일이 저장되었습니다.`,
+          variant: "success"
+        });
+      }
     } catch (error) {
       console.error('옵시디언 저장 중 오류:', error);
       setStatus({
         success: false,
         message: error instanceof Error ? error.message : '파일 저장에 실패했습니다.'
+      });
+      
+      toast({
+        title: "저장 실패",
+        description: error instanceof Error ? error.message : '파일 저장에 실패했습니다.',
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -96,11 +117,39 @@ export default function SaveToObsidianButton({
   };
   
   const handleDownloadMarkdown = () => {
-    downloadMarkdownFile(conversation, summaryResult, url);
+    try {
+      downloadMarkdownFile(conversation, summaryResult, url);
+      toast({
+        title: "마크다운 다운로드 시작됨",
+        description: "파일 다운로드가 시작되었습니다.",
+        variant: "success"
+      });
+    } catch (error) {
+      console.error('마크다운 다운로드 오류:', error);
+      toast({
+        title: "다운로드 실패",
+        description: "마크다운 파일을 다운로드하는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleDownloadJson = () => {
-    downloadJsonFile(conversation, summaryResult, url);
+    try {
+      downloadJsonFile(conversation, summaryResult, url);
+      toast({
+        title: "JSON 다운로드 시작됨",
+        description: "파일 다운로드가 시작되었습니다.",
+        variant: "success"
+      });
+    } catch (error) {
+      console.error('JSON 다운로드 오류:', error);
+      toast({
+        title: "다운로드 실패",
+        description: "JSON 파일을 다운로드하는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
   
   return (
@@ -130,6 +179,7 @@ export default function SaveToObsidianButton({
                 <DropdownMenuItem onClick={() => setIsOpen(true)}>
                   <FolderOpenIcon className="mr-2 h-4 w-4" />
                   <span>옵시디언 Vault에 저장</span>
+                  <span className="ml-1 text-xs text-gray-400">(고급)</span>
                 </DropdownMenuItem>
               </>
             )}
@@ -186,7 +236,7 @@ export default function SaveToObsidianButton({
             </div>
           )}
           
-          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
