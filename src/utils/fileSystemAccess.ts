@@ -25,16 +25,30 @@ export function isBrowser(): boolean {
 
 /**
  * Vercel 배포 환경에서 실행 중인지 확인합니다.
- * 클라이언트 사이드에서도 동작할 수 있도록 수정
+ * 클라이언트, 서버 사이드 모두에서 안정적으로 동작하도록 수정
  */
 export function isVercelEnv(): boolean {
+  // 서버 사이드에서의 확인
   if (typeof window === 'undefined') {
-    // 서버 사이드에서의 확인
-    return process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
-  } else {
-    // 클라이언트 사이드에서의 확인
-    return window.location.hostname.includes('vercel.app') || 
-           window.location.hostname === 'localhost' && window.location.port === '3000';
+    // process.env 값으로 확인 (서버 사이드)
+    return Boolean(process.env.VERCEL === '1' || 
+      process.env.NEXT_PUBLIC_VERCEL_ENV === 'production' || 
+      process.env.NEXT_PUBLIC_VERCEL === '1');
+  } 
+  
+  // 클라이언트 사이드에서의 확인
+  try {
+    // window.location.hostname으로 확인 (클라이언트 사이드)
+    const hostname = window.location.hostname;
+    return hostname.includes('vercel.app') || 
+           hostname.endsWith('.vercel.app') || 
+           // 다른 프로덕션 도메인들
+           hostname === 'pmkproject.site' || 
+           hostname === 'www.pmkproject.site';
+  } catch (error) {
+    console.error('Error checking Vercel environment on client side:', error);
+    // 에러 발생 시 안전하게 true 반환 (배포 환경으로 취급)
+    return true;
   }
 }
 
