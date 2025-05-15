@@ -22,6 +22,12 @@ if (typeof window !== 'undefined') {
 const isWindows = process.platform === 'win32';
 const isVercel = process.env.VERCEL === '1';
 
+// 타임아웃 상수 - 더 길게 설정
+const BROWSER_LAUNCH_TIMEOUT = 120000; // 2분
+const PAGE_NAVIGATION_TIMEOUT = 90000; // 1분 30초
+const PAGE_DEFAULT_TIMEOUT = 60000;    // 1분
+const CONTENT_RENDER_WAIT_TIME = 8000; // 8초
+
 /**
  * 환경에 맞는 Chromium 실행 경로 가져오기
  */
@@ -94,116 +100,13 @@ export async function parseChatGPTLink(url: string): Promise<{
   
   // let browser: Browser | null = null;
   let browser: any = null;
+  let retryCount = 0;
+  const maxRetries = 3;
   
   try {
     // 브라우저 경로 디버깅 로그
     console.log('=== Browser Path Debug Info ===');
     console.log('CHROMIUM_PATH:', process.env.CHROMIUM_PATH);
-    
-    // Playwright 코드 주석 처리
-    /*
-    // 가능한 실행 파일 경로들
-    const possiblePaths = [
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/headless_shell`,
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1169/chrome-linux/headless_shell`,
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-linux/chrome`,
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-win/chrome.exe`,
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium/chrome-linux/chrome`,
-      // Ubuntu 20.04 fallback 경로 추가
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1169/chrome-linux/chrome`,
-      `/tmp/playwright/chromium-1169/chrome-linux/chrome`,
-      // Playwright 경로 자동 감지 시도
-      process.env.PLAYWRIGHT_BROWSERS_PATH ? undefined : 'chromium'
-    ].filter(Boolean);
-    
-    console.log('Checking possible executable paths:');
-    for (const path of possiblePaths) {
-      try {
-        const fs = require('fs');
-        const exists = fs.existsSync(path);
-        console.log(`- ${path}: ${exists ? 'EXISTS' : 'NOT FOUND'}`);
-      } catch (e) {
-        console.log(`- ${path}: ERROR checking path`);
-      }
-    }
-    
-    // 첫 번째 경로로 시도
-    let browserLaunchError = null;
-  
-    // Chromium 브라우저 시작 (headless 모드)
-    try {
-      console.log('Trying to launch browser with primary path...');
-      browser = await chromium.launch({
-        headless: true,  // 백그라운드에서 실행
-        args: [
-          '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage'
-        ],
-        timeout: 60000, // 60초 타임아웃
-        // 실행 파일 경로는 우선 지정하지 않고 Playwright가 자동 감지하도록 함
-        executablePath: undefined
-      });
-      console.log('Browser launched successfully with primary path');
-    } catch (e) {
-      console.error('Failed to launch with default path:', e);
-      browserLaunchError = e;
-      
-      // 자동 감지 실패 시 다른 경로 시도
-      for (let i = 0; i < possiblePaths.length; i++) {
-        try {
-          if (!possiblePaths[i]) continue; // undefined 경로 건너뛰기
-          
-          console.log(`Trying alternate path: ${possiblePaths[i]}`);
-          browser = await chromium.launch({
-            headless: true,
-            args: [
-              '--no-sandbox', 
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage'
-            ],
-            timeout: 60000,
-            executablePath: possiblePaths[i]
-          });
-          console.log(`Browser launched successfully with alternate path: ${possiblePaths[i]}`);
-          browserLaunchError = null;
-          break;
-        } catch (err) {
-          console.error(`Failed with alternate path ${possiblePaths[i]}:`, err);
-        }
-      }
-      
-      // 모든 경로 실패 시 브라우저 재설치 시도
-      if (browserLaunchError) {
-        console.log('모든 경로 시도 실패, 브라우저 재설치 시도 중...');
-        try {
-          // 브라우저 설치 시도
-          const { execSync } = require('child_process');
-          execSync('npx playwright install chromium', { stdio: 'inherit' });
-          console.log('Chromium 재설치 완료, 다시 시도합니다.');
-          
-          // 설치 후 브라우저 실행 재시도
-          browser = await chromium.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-            timeout: 60000
-          });
-          console.log('브라우저 시작 성공 (재설치 후)');
-          browserLaunchError = null;
-        } catch (installError) {
-          console.error('브라우저 재설치 실패:', installError);
-          throw new Error(`모든 브라우저 실행 경로 시도 실패 및 재설치 실패: ${browserLaunchError instanceof Error ? browserLaunchError.message : String(browserLaunchError)}`);
-        }
-      }
-    }
-
-    // browser가 null인 경우 처리 (모든 실행 경로 시도 후에도 실패한 경우)
-    if (!browser) {
-      throw new Error('브라우저를 시작할 수 없습니다. 실행 파일 경로를 확인하세요.');
-    }
-    */
 
     // puppeteer-core + @sparticuz/chromium 사용하여 브라우저 시작
     console.log('Launching browser with @sparticuz/chromium...');
@@ -212,13 +115,23 @@ export async function parseChatGPTLink(url: string): Promise<{
     const executablePath = await getChromiumPath();
     console.log(`Using Chromium at: ${executablePath}`);
 
-    // 브라우저 실행 옵션을 더 단순화
+    // 브라우저 실행 옵션 강화
     const options = {
       args: [
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-features=IsolateOrigins',
+        '--disable-site-isolation-trials',
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--mute-audio',
+        '--no-zygote',
+        '--no-first-run',
+        '--window-size=1280,800',
+        '--hide-scrollbars'
       ],
       defaultViewport: {
         width: 1280,
@@ -227,98 +140,136 @@ export async function parseChatGPTLink(url: string): Promise<{
       executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
-      timeout: 30000
+      timeout: BROWSER_LAUNCH_TIMEOUT // 브라우저 시작 타임아웃 증가
     };
 
-    // 브라우저 인스턴스
-    try {
-      // 브라우저 실행
-      console.log('Attempting to launch browser...');
-      browser = await puppeteer.launch(options);
-      console.log('Browser launched successfully');
-      
-      // 페이지 생성 전에 잠시 대기하여 브라우저가 완전히 초기화되도록 함
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 페이지 생성
-      console.log('Creating page...');
-      const page = await browser.newPage();
-      console.log('Page created successfully');
-      
-      // 페이지 설정
-      await page.setDefaultNavigationTimeout(60000); // 60초
-      await page.setDefaultTimeout(60000);
-      
-      // 사용자 에이전트 설정
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
-      // 페이지 로드 전에 약간 대기
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // 페이지 로드
-      console.log(`Loading URL: ${url}`);
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
-      console.log('Page loaded successfully');
-      
-      // 페이지 컨텐츠가 렌더링될 시간을 확보
-      console.log('Waiting for content to render...');
-      await page.waitForTimeout(5000);
-      
-      // 전체 페이지 HTML 가져오기
-      const rawHtml = await page.content();
-      console.log(`Raw HTML length: ${rawHtml.length} characters`);
-      
-      // 페이지 텍스트 콘텐츠 가져오기
-      const rawText = await page.evaluate(() => document.body.innerText);
-      console.log(`Raw text length: ${rawText.length} characters`);
-      
-      // 대화 내용 추출 (메시지 구조화)
-      console.log('Extracting conversation data...');
-      const conversationData = await extractConversationData(page);
-
-      // 대화 객체 생성
-      const conversation: Conversation = {
-        id: extractConversationId(url),
-        title: conversationData.title,
-        messages: conversationData.messages as ChatMessage[],
-        createdAt: new Date().toISOString(),
-        source: ChatSource.CHATGPT,
-        metadata: conversationData.metadata
-      };
-
-      // 빈 대화인지 확인
-      if (conversation.messages.length === 0) {
-        throw new Error('대화 내용을 추출할 수 없습니다.');
-      }
-
-      console.log(`Extracted conversation: "${conversation.title}" with ${conversation.messages.length} messages`);
-      
-      // 모든 작업이 완료된 후 브라우저 종료
-      console.log('Closing browser...');
-      await browser.close();
-      console.log('Browser closed successfully');
-      
-      return {
-        conversation,
-        rawHtml,
-        rawText
-      };
-    } catch (error) {
-      console.error('Error during conversation extraction:', error);
-      
-      // 오류 발생 시 브라우저 자원 정리 시도
-      if (browser) {
-        try {
-          await browser.close();
-        } catch (closeError) {
-          console.warn('Failed to close browser after error:', closeError);
+    // 브라우저 시작 재시도 로직
+    while (retryCount < maxRetries) {
+      try {
+        // 브라우저 실행
+        console.log(`Attempting to launch browser (attempt ${retryCount + 1}/${maxRetries})...`);
+        browser = await puppeteer.launch(options);
+        console.log('Browser launched successfully');
+        break; // 성공하면 루프 종료
+      } catch (launchError) {
+        retryCount++;
+        console.error(`Browser launch failed (attempt ${retryCount}/${maxRetries}):`, launchError);
+        
+        if (retryCount >= maxRetries) {
+          throw new Error(`Failed to launch browser after ${maxRetries} attempts: ${launchError}`);
         }
+        
+        // 재시도 전 잠시 대기
+        console.log(`Waiting ${retryCount * 2}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
       }
-      
-      throw error instanceof Error 
-        ? error 
-        : new Error(`대화 추출 중 오류 발생: ${String(error)}`);
     }
+
+    // 페이지 생성 전에 브라우저가 완전히 초기화되도록 함
+    await new Promise(resolve => setTimeout(resolve, 1500));
+      
+    // 페이지 생성
+    console.log('Creating page...');
+    const page = await browser.newPage();
+    console.log('Page created successfully');
+    
+    // 페이지 설정
+    await page.setDefaultNavigationTimeout(PAGE_NAVIGATION_TIMEOUT); // 90초
+    await page.setDefaultTimeout(PAGE_DEFAULT_TIMEOUT); // 60초
+    
+    // 사용자 에이전트 설정
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+    
+    // 페이지 로드 전에 약간 대기
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 페이지 로드 재시도 로직
+    let pageLoadSuccess = false;
+    retryCount = 0;
+    
+    while (!pageLoadSuccess && retryCount < maxRetries) {
+      try {
+        // 페이지 로드
+        console.log(`Loading URL (attempt ${retryCount + 1}/${maxRetries}): ${url}`);
+        const response = await page.goto(url, { 
+          waitUntil: ['load', 'domcontentloaded', 'networkidle0'], 
+          timeout: PAGE_NAVIGATION_TIMEOUT
+        });
+        
+        if (!response || !response.ok()) {
+          throw new Error(`Failed to load page: ${response ? response.status() : 'No response'}`);
+        }
+        
+        console.log(`Page loaded successfully with status: ${response.status()}`);
+        pageLoadSuccess = true;
+      } catch (navigationError) {
+        retryCount++;
+        console.error(`Page navigation failed (attempt ${retryCount}/${maxRetries}):`, navigationError);
+        
+        if (retryCount >= maxRetries) {
+          throw new Error(`Failed to load page after ${maxRetries} attempts: ${navigationError}`);
+        }
+        
+        // 재시도 전 잠시 대기 
+        console.log(`Waiting ${retryCount * 3}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, retryCount * 3000));
+      }
+    }
+    
+    // 페이지가 완전히 렌더링될 때까지 대기
+    console.log(`Waiting ${CONTENT_RENDER_WAIT_TIME/1000}s for content to render...`);
+    await page.waitForTimeout(CONTENT_RENDER_WAIT_TIME);
+    
+    // 페이지 안정화를 위한 추가 대기
+    try {
+      await page.waitForFunction(
+        'document.querySelector("body") && !document.querySelector("body").classList.contains("loading")', 
+        { timeout: 10000 }
+      );
+    } catch (waitError) {
+      // 타임아웃 발생해도 계속 진행
+      console.warn('Warning: Timed out waiting for page to stabilize, continuing anyway');
+    }
+    
+    // 전체 페이지 HTML 가져오기
+    const rawHtml = await page.content();
+    console.log(`Raw HTML length: ${rawHtml.length} characters`);
+    
+    // 페이지 텍스트 콘텐츠 가져오기
+    const rawText = await page.evaluate(() => document.body.innerText);
+    console.log(`Raw text length: ${rawText.length} characters`);
+    
+    // 대화 내용 추출 (메시지 구조화)
+    console.log('Extracting conversation data...');
+    const conversationData = await extractConversationData(page);
+
+    // 대화 객체 생성
+    const conversation: Conversation = {
+      id: extractConversationId(url),
+      title: conversationData.title,
+      messages: conversationData.messages as ChatMessage[],
+      createdAt: new Date().toISOString(),
+      source: ChatSource.CHATGPT,
+      metadata: conversationData.metadata
+    };
+
+    // 빈 대화인지 확인
+    if (conversation.messages.length === 0) {
+      throw new Error('대화 내용을 추출할 수 없습니다.');
+    }
+
+    console.log(`Extracted conversation: "${conversation.title}" with ${conversation.messages.length} messages`);
+    
+    // 모든 작업이 완료된 후 브라우저 종료
+    console.log('Closing browser...');
+    await browser.close();
+    console.log('Browser closed successfully');
+    
+    return {
+      conversation,
+      rawHtml,
+      rawText
+    };
   } catch (error) {
     console.error('Error during conversation extraction:', error);
     throw error instanceof Error 
