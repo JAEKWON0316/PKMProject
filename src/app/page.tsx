@@ -49,25 +49,15 @@ export default function Home() {
       
       // 중복 URL 처리
       if (data.duplicate) {
-        setResult({
-          ...data.data,
-          duplicate: true,
-          message: data.message || '이미 저장된 대화입니다.'
-        })
+        // 중복 URL인 경우 성공 페이지로 리다이렉트
+        console.log('중복 URL 감지, 성공 페이지로 리다이렉트:', data);
+        window.location.href = `/success?id=${data.id || ''}&duplicate=true`;
       } else {
-        setResult(data.data)
+        setResult(data)
         
         // 성공 페이지로 리다이렉트
-        const conversationData = data.data.conversation;
-        
-        // 디버깅용 로그 추가
-        console.log('Redirecting to success page with data:', {
-          id: conversationData?.id || 'ID_MISSING', 
-          dataFull: JSON.stringify(data.data)
-        });
-        
-        // ID만 전달하여 URL 파라미터 크기 최소화
-        window.location.href = `/success?id=${conversationData?.id || ''}`;
+        console.log('저장 성공, 성공 페이지로 리다이렉트:', data);
+        window.location.href = `/success?id=${data.id || ''}`;
       }
       
       setUrl('')

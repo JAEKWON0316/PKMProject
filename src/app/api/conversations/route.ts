@@ -55,18 +55,17 @@ export async function POST(request: Request): Promise<Response> {
         return NextResponse.json({
           success: true,
           duplicate: true,
+          id: result.id,
+          title: result.title,
           message: '이미 저장된 대화입니다.',
-          data: {
-            id: result.id,
-            title: result.title,
-            url
-          }
+          savedToObsidian: result.savedToObsidian
         });
       }
       
       // 성공 응답
       return NextResponse.json({
         success: true,
+        id: result.id,
         data: {
           conversation: {
             id: result.id,

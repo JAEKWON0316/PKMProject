@@ -28,6 +28,7 @@ interface SaveResult {
   obsidian?: any;
   jsonBackup?: string;
   error?: string;
+  savedToObsidian?: boolean;
 }
 
 /**
@@ -61,11 +62,15 @@ export async function saveConversation(
 
       if (duplicate) {
         console.log(`URL 중복 감지: ${url}`);
+        // 중복 URL이지만 ID와 함께 반환하여 성공 페이지로 리다이렉트할 수 있도록 함
+        const savedToObsidian = existingSession?.metadata?.savedToObsidian === true;
+        
         return {
           success: true,
           duplicate: true,
           id: existingSession?.id,
           title: existingSession?.title,
+          savedToObsidian: savedToObsidian,
           error: '이미 저장된 대화입니다.'
         };
       }
