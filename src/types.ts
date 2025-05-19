@@ -81,7 +81,9 @@ export interface RagSource {
 
 export interface RagResponse {
   answer: string;
+  summary?: string;
   sources: RagSource[];
+  hasSourceContext?: boolean;
 }
 
 export interface SaveOptions {

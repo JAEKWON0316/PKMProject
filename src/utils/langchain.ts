@@ -22,6 +22,49 @@ export async function generateRagResponse(
   try {
     console.log(`RAG 검색 시작 - 쿼리: "${query}", 유사도 임계값: ${similarity}, 제한: ${limit}`);
     
+    // 일반 대화 패턴 확인
+    const conversationalPatterns = [
+      /안녕/i,
+      /반가워/i,
+      /넌\s*누구/i,
+      /네\s*이름/i,
+      /뭐\s*하/i,
+      /기분\s*어때/i,
+      /잘\s*지냈/i,
+      /뭐\s*해/i,
+      /자기소개/i,
+      /소개\s*해/i,
+      /반갑/i
+    ];
+    
+    const isConversational = conversationalPatterns.some(pattern => pattern.test(query));
+    
+    if (isConversational) {
+      console.log('일반 대화형 질문으로 판단됨, 컨텍스트 검색 없이 응답');
+      
+      // 일반 대화형 질문에 대한 응답 생성
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-nano",
+        messages: [
+          { 
+            role: "system", 
+            content: "당신은 친절하고 도움이 되는 AI 지식 도우미입니다. 사용자가 일반적인 인사나 대화를 할 때는 간단히 응답하고, 질문이 있으면 저장된 대화 내용을 검색해 답변할 수 있다고 안내해주세요."
+          },
+          { role: "user", content: query }
+        ],
+        temperature: 0.7,
+        max_tokens: 300
+      });
+      
+      const answer = completion.choices[0].message.content?.trim() || "답변을 생성할 수 없습니다.";
+      
+      return {
+        answer,
+        sources: [],
+        hasSourceContext: false
+      };
+    }
+    
     // 1. 유사한 청크 검색
     const similarChunks = await searchSimilarChunks(query, similarity, limit);
     
@@ -45,14 +88,16 @@ export async function generateRagResponse(
         // 메타 질문에 대한 응답
         return {
           answer: "현재 저장된 대화의 요약 정보를 찾을 수 없습니다. 먼저 대화를 저장해주세요.",
-          sources: []
+          sources: [],
+          hasSourceContext: false
         };
       }
       
       // 일반 질문에 대한 응답
       return {
         answer: "관련 정보를 찾을 수 없습니다. 다른 질문을 시도하거나, 더 구체적인 질문을 해보세요. 현재 데이터베이스에 저장된 정보가 제한적일 수 있습니다.",
-        sources: []
+        sources: [],
+        hasSourceContext: false
       };
     }
     
@@ -113,9 +158,24 @@ ${context}
     
     const answer = completion.choices[0].message.content?.trim() || "응답을 생성할 수 없습니다.";
     
+    // 요약 생성
+    const summaryCompletion = await openai.chat.completions.create({
+      model: "gpt-4.1-nano",
+      messages: [
+        { role: "system", content: "당신은 텍스트를 한 문장으로 요약하는 전문가입니다." },
+        { role: "user", content: `다음 텍스트를 한 문장으로 간결하게 요약해주세요: "${answer}"` }
+      ],
+      temperature: 0.3,
+      max_tokens: 100
+    });
+
+    const summary = summaryCompletion.choices[0].message.content?.trim() || "요약을 생성할 수 없습니다.";
+    
     return {
       answer,
-      sources: sources.slice(0, 3) // 상위 3개 출처만 반환
+      summary,
+      sources: sources.slice(0, 3), // 상위 3개 출처만 반환
+      hasSourceContext: true
     };
   } catch (error) {
     console.error('RAG 응답 생성 오류:', error);
