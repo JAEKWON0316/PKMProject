@@ -84,19 +84,19 @@ export default function SaveToObsidianButton({
         url
       );
       
-      setStatus({
-        success: result.success,
-        message: result.success 
-          ? `${result.files.length}개의 파일을 저장했습니다.` 
-          : '파일 저장에 실패했습니다.',
-        files: result.files
-      });
-      
       if (result.success) {
         toast({
           title: "파일 저장 성공!",
           description: `${result.files.length}개의 파일이 저장되었습니다.`,
           variant: "success"
+        });
+        
+        // 성공 시 대화상자 닫기
+        setIsOpen(false);
+      } else {
+        setStatus({
+          success: false,
+          message: '파일 저장에 실패했습니다.'
         });
       }
     } catch (error) {
@@ -120,8 +120,8 @@ export default function SaveToObsidianButton({
     try {
       downloadMarkdownFile(conversation, summaryResult, url);
       toast({
-        title: "마크다운 다운로드 시작됨",
-        description: "파일 다운로드가 시작되었습니다.",
+        title: "마크다운 다운로드 완료",
+        description: "파일이 성공적으로 다운로드되었습니다.",
         variant: "success"
       });
     } catch (error) {
@@ -138,8 +138,8 @@ export default function SaveToObsidianButton({
     try {
       downloadJsonFile(conversation, summaryResult, url);
       toast({
-        title: "JSON 다운로드 시작됨",
-        description: "파일 다운로드가 시작되었습니다.",
+        title: "JSON 다운로드 완료",
+        description: "파일이 성공적으로 다운로드되었습니다.",
         variant: "success"
       });
     } catch (error) {
@@ -206,27 +206,6 @@ export default function SaveToObsidianButton({
                 <li><FileTextIcon className="inline w-4 h-4 mr-2" /> {conversation.title}-original.txt <span className="text-xs">(ChatGPT 폴더)</span></li>
                 <li><FileJsonIcon className="inline w-4 h-4 mr-2" /> {conversation.title}-{Date.now()}.json <span className="text-xs">(_data/conversations 폴더)</span></li>
               </ul>
-            </div>
-          ) : status.success ? (
-            <div className="py-4 text-center">
-              <CheckCircleIcon className="w-12 h-12 mx-auto text-green-500 mb-2" />
-              <p className="text-lg font-medium">{status.message}</p>
-              {status.files && status.files.length > 0 && (
-                <ul className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-left">
-                  {status.files.map((file, index) => (
-                    <li key={index} className="truncate">
-                      {file.endsWith('.md') ? (
-                        <FileTextIcon className="inline w-4 h-4 mr-1" />
-                      ) : file.endsWith('.json') ? (
-                        <FileJsonIcon className="inline w-4 h-4 mr-1" />
-                      ) : (
-                        <FileTextIcon className="inline w-4 h-4 mr-1" />
-                      )} 
-                      {file}
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           ) : (
             <div className="py-4 text-center">
