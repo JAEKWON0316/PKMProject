@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+// supabase 클라이언트 가져오기 (null이 아님을 단언)
+const supabaseAdmin = getSupabaseAdmin() as SupabaseClient;
 
 // 전역 MCP 타입 선언
 declare global {

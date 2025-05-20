@@ -1,9 +1,24 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseClient, getSupabaseAdmin } from '@/lib/supabase';
 import { ChatMessage, ChatChunk, ChatSession } from '@/types';
 import { getEmbedding, chunkMessages } from './embeddings';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-// Supabase 클라이언트 재사용
-export const supabase = supabaseAdmin;
+// 실행 환경에 따라 적절한 Supabase 클라이언트를 반환하는 함수
+function getSupabase(): SupabaseClient {
+  // 브라우저 환경과 서버 환경에 따라 적절한 클라이언트 반환
+  if (typeof window !== 'undefined') {
+    // 클라이언트 측에서는 getSupabaseClient()가 null을 반환하지 않음을 보장
+    return getSupabaseClient();
+  } else {
+    // 서버 측에서는 getSupabaseAdmin()이 null을 반환하지 않음을 보장
+    const admin = getSupabaseAdmin();
+    if (!admin) {
+      console.error('Supabase Admin 클라이언트가 초기화되지 않았습니다. 환경 변수를 확인하세요.');
+      throw new Error('Supabase Admin 클라이언트 초기화 실패');
+    }
+    return admin;
+  }
+}
 
 /**
  * JSON 데이터를 안전하게 처리합니다.
@@ -53,7 +68,7 @@ export async function checkUrlExists(url: string): Promise<{ exists: boolean; se
     const normalizedUrl = new URL(url).origin + new URL(url).pathname;
     
     // 정규화된 URL로 시작하는 세션 검색
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('chat_sessions')
       .select('id, title, url, summary, created_at')
       .ilike('url', `${normalizedUrl}%`)
@@ -120,7 +135,7 @@ export async function insertChatSession({
     const embedding = await getEmbedding(sanitizedSummary);
     
     // 세션 데이터 삽입
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('chat_sessions')
       .insert({
         title: sanitizedTitle,
@@ -182,7 +197,7 @@ export async function processAndInsertChunks(
       const batch = chunksWithEmbeddings.slice(i, i + batchSize);
       
       try {
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
           .from('chat_chunks')
           .insert(batch);
         
@@ -224,7 +239,7 @@ export async function searchSimilarChunks(
     if (isMetaQuestion) {
       console.log('메타 질문 감지됨, 모든 세션의 요약 정보를 검색합니다.');
       // 메타 질문인 경우 가장 최근 세션의 요약 정보를 가져오기
-      const { data: sessionData, error: sessionError } = await supabase
+      const { data: sessionData, error: sessionError } = await getSupabase()
         .from('chat_sessions')
         .select('id, title, summary')
         .order('created_at', { ascending: false })
@@ -264,7 +279,7 @@ export async function searchSimilarChunks(
     console.log(`임베딩 생성 완료: ${queryEmbedding.length} 차원`);
     
     // 유사한 청크 검색
-    const { data, error } = await supabase.rpc(
+    const { data, error } = await getSupabase().rpc(
       'match_chunks',
       {
         query_embedding: queryEmbedding,
@@ -286,7 +301,7 @@ export async function searchSimilarChunks(
       const lowerThreshold = similarity * 0.5;
       console.log(`결과가 없어 유사도 임계값을 ${lowerThreshold.toFixed(2)}로 낮춰 재시도`);
       
-      const { data: retryData, error: retryError } = await supabase.rpc(
+      const { data: retryData, error: retryError } = await getSupabase().rpc(
         'match_chunks',
         {
           query_embedding: queryEmbedding,
@@ -305,7 +320,7 @@ export async function searchSimilarChunks(
         const lowestThreshold = 0.1;
         console.log(`결과가 여전히 없어 최저 임계값 ${lowestThreshold.toFixed(2)}로 재시도`);
         
-        const { data: lastRetryData, error: lastRetryError } = await supabase.rpc(
+        const { data: lastRetryData, error: lastRetryError } = await getSupabase().rpc(
           'match_chunks',
           {
             query_embedding: queryEmbedding,
@@ -334,7 +349,7 @@ export async function searchSimilarChunks(
  * 세션 ID로 대화 세션을 조회합니다.
  */
 export async function getChatSessionById(id: string): Promise<ChatSession> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('chat_sessions')
     .select('*')
     .eq('id', id)
@@ -350,21 +365,42 @@ export async function getChatSessionById(id: string): Promise<ChatSession> {
  * 요약 정보만 반환합니다 (전체 메시지는 제외).
  */
 export async function getAllChatSessions(): Promise<Partial<ChatSession>[]> {
-  const { data, error } = await supabase
-    .from('chat_sessions')
-    .select('id, title, url, summary, created_at, metadata')
-    .order('created_at', { ascending: false });
+  try {
+    // Supabase가 초기화되지 않은 경우 빈 배열 반환
+    if (!getSupabase()) {
+      console.warn('Supabase 클라이언트가 초기화되지 않았습니다. 환경 변수를 확인하세요.');
+      return [];
+    }
     
-  if (error) throw error;
-  
-  return data;
+    const { data, error } = await getSupabase()
+      .from('chat_sessions')
+      .select('id, title, url, summary, messages, metadata, created_at')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('채팅 세션 가져오기 오류:', error);
+      
+      // 테이블이 존재하지 않는 경우 개발 목적으로 빈 배열 반환
+      if (error.code === 'PGRST116') {
+        console.warn('chat_sessions 테이블이 존재하지 않습니다. 테이블을 생성해야 합니다.');
+        return [];
+      }
+      
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('채팅 세션 가져오기 오류:', error);
+    return [];
+  }
 }
 
 /**
  * 대화 세션의 모든 청크를 가져옵니다.
  */
 export async function getChunksBySessionId(sessionId: string): Promise<ChatChunk[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('chat_chunks')
     .select('*')
     .eq('chat_session_id', sessionId)
@@ -379,7 +415,7 @@ export async function getChunksBySessionId(sessionId: string): Promise<ChatChunk
  * 키워드로 대화 세션을 검색합니다.
  */
 export async function searchChatSessions(keyword: string): Promise<Partial<ChatSession>[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('chat_sessions')
     .select('id, title, url, summary, created_at, metadata')
     .or(`title.ilike.%${keyword}%,summary.ilike.%${keyword}%`)

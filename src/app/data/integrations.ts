@@ -29,6 +29,7 @@ import {
   Scissors,
   Truck,
   Wifi,
+  LucideIcon,
 } from "lucide-react"
 import type React from "react"
 
@@ -59,6 +60,10 @@ export const categories = [
   "Social Media",
 ]
 
+// 아이콘 타입을 명시적으로 정의
+type IconKey = keyof typeof iconMap;
+
+// 타입 안전한 iconMap 정의
 const iconMap = {
   Zap,
   ShoppingCart,
@@ -117,7 +122,7 @@ const colorPalette = [
 
 function generateIntegrations(count: number): Integration[] {
   const integrations: Integration[] = []
-  const iconKeys = Object.keys(iconMap)
+  const iconKeys = Object.keys(iconMap) as IconKey[]
 
   for (let i = 0; i < count; i++) {
     const iconKey = iconKeys[Math.floor(Math.random() * iconKeys.length)]
@@ -129,7 +134,8 @@ function generateIntegrations(count: number): Integration[] {
       name: `Integration ${i + 1}`,
       description: `This is a detailed description for Integration ${i + 1}. It provides ${category.toLowerCase()} services to streamline your workflow and improve efficiency. With powerful features and easy integration, it's an essential tool for modern businesses looking to optimize their operations and stay ahead in the competitive market.`,
       category,
-      icon: iconMap[iconKey],
+      // 타입 안전한 접근 방식 사용
+      icon: iconMap[iconKey] as unknown as React.ComponentType,
       color,
     })
   }

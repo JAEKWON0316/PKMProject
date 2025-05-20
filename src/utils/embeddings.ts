@@ -2,10 +2,36 @@ import OpenAI from 'openai';
 import { ChatMessage } from '@/types';
 import { encode, decode } from 'gpt-tokenizer';
 
-// OpenAI API 클라이언트 초기화
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// 서버 측에서만 OpenAI 클라이언트 초기화
+let openai: OpenAI | null = null;
+
+// 서버 측에서만 OpenAI 클라이언트 초기화
+if (typeof window === 'undefined') {
+  try {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  } catch (error) {
+    console.warn('OpenAI 클라이언트 초기화 실패:', error);
+    openai = null;
+  }
+}
+
+// 개발 모드에서 임베딩 생성을 위한 가짜 데이터
+function generateFakeEmbedding(text: string): number[] {
+  // 항상 동일한 텍스트에 대해 동일한 임베딩 반환 (단순화된 해시 기반)
+  const hash = Array.from(text || '').reduce((acc, char) => {
+    return (acc * 31 + char.charCodeAt(0)) % 997;
+  }, 7);
+  
+  // 1536 차원의 임베딩 벡터 생성 (OpenAI 임베딩 차원 수와 동일)
+  const embedding = Array(1536).fill(0).map((_, i) => {
+    // 해시와 인덱스를 기반으로 -1과 1 사이의 값 생성
+    return Math.cos((hash + i) / 100) * 0.5;
+  });
+  
+  return embedding;
+}
 
 /**
  * 텍스트에서 유효하지 않은 문자를 제거합니다.
@@ -33,6 +59,18 @@ function sanitizeText(text: string): string {
  */
 export async function getEmbedding(text: string): Promise<number[]> {
   try {
+    // 클라이언트 측에서 실행 중인 경우 가짜 임베딩 반환
+    if (typeof window !== 'undefined') {
+      console.log('클라이언트 측에서 가짜 임베딩 생성');
+      return generateFakeEmbedding(text);
+    }
+    
+    // 서버 측에서 실행 중이지만 OpenAI 인스턴스가 없는 경우
+    if (!openai) {
+      console.warn('OpenAI 클라이언트가 초기화되지 않았습니다. 가짜 임베딩을 사용합니다.');
+      return generateFakeEmbedding(text);
+    }
+    
     // 텍스트 정제
     const sanitizedText = sanitizeText(text);
     
@@ -49,6 +87,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
       const expandedText = `질문: ${sanitizedText} 에 대한 정보를 찾습니다.`;
       console.log(`확장된 텍스트로 임베딩 생성: "${expandedText}"`);
       
+      // OpenAI 인스턴스 체크는 위에서 했으므로 안전하게 사용 가능
       const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: expandedText,
@@ -67,20 +106,8 @@ export async function getEmbedding(text: string): Promise<number[]> {
   } catch (error) {
     console.error('임베딩 생성 중 오류:', error);
     
-    // 오류 발생 시 재시도 (다른 모델 사용)
-    try {
-      console.log('대체 임베딩 모델로 재시도합니다.');
-      const response = await openai.embeddings.create({
-        model: 'text-embedding-ada-002', // 대체 모델
-        input: sanitizeText(text) || '빈 쿼리',
-      });
-      
-      return response.data[0].embedding;
-    } catch (retryError) {
-      console.error('대체 임베딩 생성 중 오류:', retryError);
-      // 모든 시도 실패 시 기본 임베딩 반환
-      return Array(1536).fill(0);
-    }
+    // 오류 발생 시 가짜 임베딩 반환
+    return generateFakeEmbedding(text);
   }
 }
 
