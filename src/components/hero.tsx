@@ -100,14 +100,14 @@ export default function Hero() {
               </div>
             </Link>
             
-            <Link href="/success" className="group">
+            <Link href="/integrations" className="group">
               <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-500/50">
                 <div className="p-3 sm:p-4 md:p-6">
                   <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-green-400 transition-colors">
-                    저장된 대화
+                    대화 찾아보기
                   </h3>
                   <p className="text-sm sm:text-base text-gray-400">
-                    이전에 저장한 대화 내용을 확인하고 관리합니다.
+                    저장된 전체 대화 내용을 확인하고 관리합니다.
                   </p>
                 </div>
               </div>
