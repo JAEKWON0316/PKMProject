@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMousePosition } from "@/lib/hooks/use-mouse-position"
 
 interface SparklesProps {
@@ -11,179 +11,146 @@ interface SparklesProps {
   particleDensity?: number
   className?: string
   particleColor?: string
-  particleOffsetX?: number
-  particleOffsetY?: number
-  speed?: number
+}
+
+// Particle 클래스를 외부로 이동
+class Particle {
+  x: number
+  y: number
+  size: number
+  speedX: number
+  speedY: number
+  canvasWidth: number
+  canvasHeight: number
+
+  constructor(
+    canvasWidth: number,
+    canvasHeight: number,
+    minSize: number,
+    maxSize: number
+  ) {
+    this.canvasWidth = canvasWidth
+    this.canvasHeight = canvasHeight
+    this.x = Math.random() * this.canvasWidth
+    this.y = Math.random() * this.canvasHeight
+    this.size = Math.random() * (maxSize - minSize) + minSize
+    this.speedX = Math.random() * 0.5 - 0.25
+    this.speedY = Math.random() * 0.5 - 0.25
+  }
+
+  update(mouseX: number, mouseY: number) {
+    this.x += this.speedX
+    this.y += this.speedY
+
+    if (this.x > this.canvasWidth) this.x = 0
+    if (this.x < 0) this.x = this.canvasWidth
+    if (this.y > this.canvasHeight) this.y = 0
+    if (this.y < 0) this.y = this.canvasHeight
+
+    // Mouse interaction
+    const dx = mouseX - this.x
+    const dy = mouseY - this.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    if (distance < 100) {
+      const angle = Math.atan2(dy, dx)
+      this.x -= Math.cos(angle) * 1
+      this.y -= Math.sin(angle) * 1
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D, particleColor: string) {
+    ctx.fillStyle = particleColor
+    ctx.beginPath()
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
+    ctx.fill()
+  }
 }
 
 export const SparklesCore = ({
-  id,
+  id = "tsparticles",
   background = "transparent",
-  minSize = 0.4,
-  maxSize = 1,
-  speed = 1,
+  minSize = 0.6,
+  maxSize = 1.4,
   particleDensity = 100,
-  className,
-  particleColor = "#FFF",
-  particleOffsetX = 0,
-  particleOffsetY = 0,
+  className = "h-full w-full",
+  particleColor = "#FFFFFF",
 }: SparklesProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const canvasContainerRef = useRef<HTMLDivElement>(null)
-  const context = useRef<CanvasRenderingContext2D | null>(null)
   const mousePosition = useMousePosition()
-  const particles = useRef<any[]>([])
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
-  const animationRef = useRef<number | null>(null)
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 800 })
 
   useEffect(() => {
-    if (canvasContainerRef.current) {
-      const { width, height } = canvasContainerRef.current.getBoundingClientRect()
-      setDimensions({ width, height })
-    }
-  }, [])
+    if (typeof window === "undefined") return
 
-  useEffect(() => {
-    if (canvasRef.current) {
-      context.current = canvasRef.current.getContext("2d")
+    setDimensions({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    })
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    let particles: Particle[] = []
+    let animationFrameId: number
+
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    const init = () => {
+      particles = []
+      for (let i = 0; i < particleDensity; i++) {
+        particles.push(new Particle(canvas.width, canvas.height, minSize, maxSize))
+      }
     }
+
+    const animate = () => {
+      if (!ctx) return
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      particles.forEach((particle) => {
+        particle.update(mousePosition.x, mousePosition.y)
+        particle.draw(ctx, particleColor)
+      })
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    init()
+    animate()
 
     const handleResize = () => {
-      if (canvasContainerRef.current) {
-        const { width, height } = canvasContainerRef.current.getBoundingClientRect()
-        setDimensions({ width, height })
-      }
+      if (typeof window === "undefined") return
+
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+      init()
     }
 
     window.addEventListener("resize", handleResize)
+
     return () => {
       window.removeEventListener("resize", handleResize)
-      if (animationRef.current !== null) {
-        cancelAnimationFrame(animationRef.current)
-      }
+      cancelAnimationFrame(animationFrameId)
     }
-  }, [])
-
-  useEffect(() => {
-    if (!context.current || !dimensions.width || !dimensions.height) return
-
-    const createParticles = () => {
-      particles.current = []
-      const particleCount = particleDensity
-      for (let i = 0; i < particleCount; i++) {
-        const particle = {
-          x: Math.random() * dimensions.width,
-          y: Math.random() * dimensions.height,
-          size: Math.random() * (maxSize - minSize) + minSize,
-          opacity: Math.random(),
-          color: particleColor,
-          velocity: {
-            x: (Math.random() - 0.5) * speed,
-            y: (Math.random() - 0.5) * speed,
-          },
-        }
-        particles.current.push(particle)
-      }
-    }
-
-    createParticles()
-
-    const renderParticles = () => {
-      if (!context.current || !dimensions.width || !dimensions.height) return
-      context.current.clearRect(0, 0, dimensions.width, dimensions.height)
-      context.current.fillStyle = background
-      context.current.fillRect(0, 0, dimensions.width, dimensions.height)
-
-      particles.current.forEach((particle) => {
-        if (particle.opacity <= 0.1) {
-          particle.opacity = 0
-        }
-        context.current!.beginPath()
-        context.current!.arc(
-          particle.x,
-          particle.y,
-          particle.size,
-          0,
-          Math.PI * 2
-        )
-        context.current!.fillStyle = particle.color
-        context.current!.globalAlpha = particle.opacity
-        context.current!.fill()
-        context.current!.globalAlpha = 1
-
-        // Add slight mouse interaction
-        if (mousePosition.x !== null && mousePosition.y !== null) {
-          const dx = mousePosition.x - particle.x
-          const dy = mousePosition.y - particle.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          const maxDistance = 200
-          if (distance < maxDistance) {
-            const force = (maxDistance - distance) / maxDistance
-            particle.velocity.x += (dx / distance) * force * 0.02
-            particle.velocity.y += (dy / distance) * force * 0.02
-          }
-        }
-
-        particle.x += particle.velocity.x + particleOffsetX
-        particle.y += particle.velocity.y + particleOffsetY
-
-        // Reset particles that are out of bounds
-        if (
-          particle.x < 0 ||
-          particle.x > dimensions.width ||
-          particle.y < 0 ||
-          particle.y > dimensions.height
-        ) {
-          if (Math.random() < 0.5) {
-            // Reset on a border
-            if (Math.random() < 0.5) {
-              // Reset on left or right border
-              particle.x = Math.random() < 0.5 ? 0 : dimensions.width
-              particle.y = Math.random() * dimensions.height
-            } else {
-              // Reset on top or bottom border
-              particle.x = Math.random() * dimensions.width
-              particle.y = Math.random() < 0.5 ? 0 : dimensions.height
-            }
-          } else {
-            // Reset at a random position
-            particle.x = Math.random() * dimensions.width
-            particle.y = Math.random() * dimensions.height
-          }
-          particle.velocity.x = (Math.random() - 0.5) * speed
-          particle.velocity.y = (Math.random() - 0.5) * speed
-        }
-      })
-
-      animationRef.current = requestAnimationFrame(renderParticles)
-    }
-
-    renderParticles()
-  }, [dimensions, maxSize, minSize, particleColor, particleDensity, particleOffsetX, particleOffsetY, speed, background, mousePosition.x, mousePosition.y])
+  }, [maxSize, minSize, particleColor, particleDensity, mousePosition.x, mousePosition.y])
 
   return (
-    <div
-      ref={canvasContainerRef}
+    <canvas
+      ref={canvasRef}
+      id={id}
       className={className}
       style={{
-        width: "100%",
-        height: "100%",
-        position: "relative",
+        background,
+        width: dimensions.width,
+        height: dimensions.height,
       }}
-    >
-      <canvas
-        id={id}
-        ref={canvasRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        style={{
-          width: "100%",
-          height: "100%",
-          position: "absolute",
-          top: 0,
-          left: 0,
-        }}
-      />
-    </div>
+    />
   )
 }
