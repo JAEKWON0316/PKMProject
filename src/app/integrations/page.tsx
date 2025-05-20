@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { categories, integrations, type Integration } from "@/app/data/integrations"
 import SearchBar from "@/components/SearchBar"
@@ -24,7 +24,26 @@ const mainCategories = [
 
 const ITEMS_PER_PAGE = 30
 
+// 정적 렌더링을 하지 않도록 설정 (빌드 시 사전 렌더링 방지)
+export const dynamic = 'force-dynamic'
+
+// 페이지 컴포넌트를 두 부분으로 분리합니다
 export default function IntegrationsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden justify-center items-center">
+        <div className="text-center py-16 text-gray-400">
+          <p className="text-xl">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <IntegrationsContent />
+    </Suspense>
+  )
+}
+
+// useSearchParams를 사용하는 실제 컨텐츠 컴포넌트
+function IntegrationsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -66,6 +85,8 @@ export default function IntegrationsPage() {
         setChatSessions(processedSessions)
       } catch (error) {
         console.error("채팅 세션 가져오기 오류:", error)
+        // 오류 발생 시 빈 배열 설정
+        setChatSessions([])
       } finally {
         setLoading(false)
       }
