@@ -2,6 +2,7 @@ import { getSupabaseClient, getSupabaseAdmin } from '@/lib/supabase';
 import { ChatMessage, ChatChunk, ChatSession } from '@/types';
 import { getEmbedding, chunkMessages } from './embeddings';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { classifySessionCategory } from './categoryClassifier';
 
 // 실행 환경에 따라 적절한 Supabase 클라이언트를 반환하는 함수
 function getSupabase(): SupabaseClient {
@@ -129,7 +130,43 @@ export async function insertChatSession({
     const sanitizedTitle = sanitizeJsonData(title);
     const sanitizedSummary = sanitizeJsonData(summary);
     const sanitizedMessages = sanitizeJsonData(messages);
-    const sanitizedMetadata = sanitizeJsonData(metadata);
+    let sanitizedMetadata = sanitizeJsonData(metadata);
+    
+    // AI 기반 카테고리 자동 분류 시도 (서버 측에서만)
+    if (typeof window === 'undefined') {
+      try {
+        console.log('대화 세션 카테고리 자동 분류 시도 중...');
+        
+        // 분류할 세션 객체 준비
+        const sessionToClassify: Partial<ChatSession> = {
+          title: sanitizedTitle,
+          summary: sanitizedSummary,
+          messages: sanitizedMessages,
+          metadata: sanitizedMetadata
+        };
+        
+        // 자동 카테고리 분류 실행
+        const category = await classifySessionCategory(sessionToClassify);
+        console.log(`카테고리 분류 결과: ${category}`);
+        
+        // 기존 메타데이터에 카테고리 추가
+        sanitizedMetadata = {
+          ...sanitizedMetadata,
+          mainCategory: category
+        };
+      } catch (classifyError) {
+        console.error('카테고리 자동 분류 중 오류:', classifyError);
+        // 오류 시 기본 카테고리 설정
+        if (!sanitizedMetadata.mainCategory) {
+          sanitizedMetadata.mainCategory = '기타';
+        }
+      }
+    } else {
+      // 클라이언트 측에서는 메타데이터에 기본 카테고리 설정
+      if (!sanitizedMetadata.mainCategory) {
+        sanitizedMetadata.mainCategory = '기타';
+      }
+    }
     
     // 요약 텍스트 임베딩 생성
     const embedding = await getEmbedding(sanitizedSummary);

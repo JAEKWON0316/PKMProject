@@ -1,38 +1,18 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 type PaginationProps = {
   currentPage: number
   totalPages: number
-  currentCategory?: string
-  searchQuery?: string
+  onPageChange: (page: number) => void
 }
 
 export default function Pagination({ 
   currentPage, 
   totalPages, 
-  currentCategory = "All", 
-  searchQuery = "" 
+  onPageChange 
 }: PaginationProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  
-  // URL 파라미터를 포함한 페이지 URL 생성
-  const getPageUrl = (page: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    
-    if (page > 1) {
-      params.set("page", page.toString())
-    } else {
-      params.delete("page")
-    }
-    
-    return `/integrations?${params.toString()}`
-  }
-  
   // 페이지 번호 계산
   const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
     if (totalPages <= 5) return i + 1
@@ -43,19 +23,20 @@ export default function Pagination({
 
   return (
     <div className="flex items-center justify-center space-x-2">
-      <Link
-        href={getPageUrl(Math.max(1, currentPage - 1))}
+      <button
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
         className={`px-3 py-1 rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700 ${
-          currentPage === 1 ? "pointer-events-none opacity-50" : ""
+          currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
         }`}
       >
         이전
-      </Link>
+      </button>
 
       {pageNumbers.map((page) => (
-        <Link
+        <button
           key={page}
-          href={getPageUrl(page)}
+          onClick={() => onPageChange(page)}
           className={`w-10 h-10 rounded-md flex items-center justify-center ${
             currentPage === page
               ? "bg-purple-600 text-white"
@@ -63,17 +44,18 @@ export default function Pagination({
           }`}
         >
           {page}
-        </Link>
+        </button>
       ))}
 
-      <Link
-        href={getPageUrl(Math.min(totalPages, currentPage + 1))}
+      <button
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
         className={`px-3 py-1 rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700 ${
-          currentPage === totalPages ? "pointer-events-none opacity-50" : ""
+          currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
         }`}
       >
         다음
-      </Link>
+      </button>
     </div>
   )
 }

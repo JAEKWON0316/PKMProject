@@ -11,7 +11,7 @@ export default function Navbar() {
     <nav className="w-full py-6 px-6 sm:px-8">
       <div className="container mx-auto flex justify-between items-center">
         {/* 좌측: 로고 */}
-        <Link href="/" className="text-white font-bold text-2xl">
+        <Link href="/" className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
           PKM AI
         </Link>
 
