@@ -9,6 +9,8 @@ import Pagination from "@/components/Pagination"
 import { getAllChatSessions } from "@/utils/supabaseHandler"
 import { ChatSession } from "@/types"
 import { PREDEFINED_CATEGORIES } from "@/utils/categoryClassifier"
+import HomeLogoButton from "@/components/HomeLogoButton"
+import Link from "next/link"
 
 // 메인 카테고리 목록 (정의된 카테고리 사용)
 const mainCategories = [
@@ -218,9 +220,12 @@ function IntegrationsContent() {
   );
 
   return (
-    <div className="flex h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
-      {/* 왼쪽 사이드바 - 카테고리 필터 */}
-      <div className="w-64 hidden md:block bg-gray-800 border-r border-gray-700 overflow-auto">
+    <div className="flex flex-col md:flex-row h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
+      {/* 홈 로고 버튼 */}
+      <HomeLogoButton />
+      
+      {/* 왼쪽 사이드바 - 카테고리 필터 (태블릿/데스크탑에서만 표시) */}
+      <div className="w-64 hidden md:block bg-gray-800 border-r border-gray-700 overflow-auto pt-16">
         <div className="p-4">
           <h2 className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">카테고리</h2>
           <div className="space-y-1">
@@ -245,99 +250,66 @@ function IntegrationsContent() {
           </div>
         </div>
       </div>
-
-      {/* 메인 컨텐츠 영역 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 md:p-6 border-b border-gray-700">
-          <h1 className="text-2xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">대화 찾아보기</h1>
+      
+      {/* 메인 콘텐츠 영역 */}
+      <div className="flex-1 overflow-auto pt-16 pb-4 px-3 sm:px-4 md:px-6">
+        {/* 모바일에서만 표시되는 드롭다운 카테고리 선택 */}
+        <div className="mb-4 md:hidden">
+          <div className="relative">
+            <select
+              value={category}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-sm appearance-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              {mainCategories.map(cat => (
+                <option key={cat} value={cat}>
+                  {cat} ({categoryCounts[cat] || 0})
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        {/* 검색창 */}
+        <div className="mb-6">
           <SearchBar 
-            onSearch={handleSearch} 
-            initialValue={query} 
-            initialMode={searchMode} 
+            onSearch={handleSearch}
+            initialValue={initialQuery}
+            initialMode={initialMode}
           />
         </div>
-
-        {/* 모바일 전용 카테고리 필터 */}
-        <div className="md:hidden p-4 border-b border-gray-700 overflow-x-auto">
-          <div className="flex space-x-2">
-            {mainCategories.map(cat => {
-              return (
-                <button
-                  key={cat}
-                  onClick={() => handleCategoryChange(cat)}
-                  className={`px-3 py-1 rounded-full text-sm whitespace-nowrap flex items-center space-x-1 ${
-                    category === cat
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-800 text-gray-300 border border-gray-700"
-                  }`}
-                >
-                  <span>{cat}</span>
-                  <span className="text-xs bg-gray-700 px-1.5 rounded-full">
-                    {categoryCounts[cat] || 0}
-                  </span>
-                </button>
-              );
-            })}
+        
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin h-8 w-8 border-4 border-gray-300 border-t-purple-500 rounded-full"></div>
+            <p className="mt-4 text-gray-400">대화 내용을 불러오는 중...</p>
           </div>
-        </div>
-
-        {/* 대화 목록 영역 */}
-        <div className="flex-1 overflow-auto p-4 md:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <span className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">{category}</span>
-              <span className="text-sm text-gray-400 ml-2">
-                ({filteredSessions.length}개 대화)
-              </span>
-            </div>
-            {query && (
-              <div className="text-sm text-gray-400">
-                <span>
-                  {searchMode === "title" ? "제목" : 
-                   searchMode === "summary" ? "요약" : "제목+요약"}
-                </span>
-                <span>에서 </span>
-                <span className="text-gray-300">"{query}"</span>
-                <span> 검색 중</span>
-                {isSearching && <span className="ml-2 animate-pulse">🔍</span>}
+        ) : paginatedSessions.length === 0 ? (
+          <div className="text-center py-16 bg-gray-800 rounded-2xl border border-gray-700 text-gray-400">
+            <p className="text-xl mb-2">대화를 찾을 수 없습니다.</p>
+            <p>검색어를 변경하거나 다른 카테고리를 선택해 보세요.</p>
+          </div>
+        ) : (
+          <>
+            <IntegrationGrid integrations={[]} chatSessions={paginatedSessions} />
+            
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+              <div className="mt-6">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
               </div>
             )}
-          </div>
-
-          {loading ? (
-            <div className="text-center py-16 text-gray-400">
-              <p className="text-xl">대화를 불러오는 중...</p>
-            </div>
-          ) : filteredSessions.length > 0 ? (
-            <>
-              <IntegrationGrid chatSessions={paginatedSessions} integrations={[]} />
-              {totalPages > 1 && (
-                <div className="mt-6">
-                  <Pagination 
-                    currentPage={page} 
-                    totalPages={totalPages} 
-                    onPageChange={handlePageChange} 
-                  />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-16 text-gray-400">
-              {query ? (
-                <div>
-                  <p className="text-xl mb-2">
-                    {searchMode === "title" ? "제목" : 
-                     searchMode === "summary" ? "요약" : "제목 또는 요약"}
-                    에 "{query}"가 포함된 대화가 없습니다
-                  </p>
-                  <p className="text-sm">다른 검색어를 시도하거나 검색 모드를 변경해보세요</p>
-                </div>
-              ) : (
-                <p className="text-xl">이 카테고리에 대화가 없습니다</p>
-              )}
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   )

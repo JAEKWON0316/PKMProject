@@ -3,6 +3,7 @@ import Link from 'next/link';
 import ConversationResult from '@/components/ConversationResult';
 import { getChatSessionById } from '@/utils/supabaseHandler';
 import { ChatMessage, ChatSession } from '@/types';
+import HomeLogoButton from '@/components/HomeLogoButton';
 
 interface PageProps {
   searchParams: {
@@ -53,43 +54,46 @@ export default async function SuccessPage({ searchParams }: PageProps) {
     // 화면에 표시할 ConversationResult 컴포넌트 반환
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8 sm:py-16">
+        {/* 홈 로고 버튼 */}
+        <HomeLogoButton />
+        
+        <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-16 pt-16">
           <div className="max-w-5xl mx-auto">
             {/* 헤더 섹션 */}
-            <div className="text-center mb-8 sm:mb-12">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2 sm:mb-4">
+            <div className="text-center mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2 sm:mb-4">
                 대화 저장 완료
               </h1>
-              <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300">
+              <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
                 {isDuplicate ? '중복된 대화를 확인합니다.' : '성공적으로 대화가 저장되었습니다.'}
               </p>
             </div>
             
             {/* 버튼 컨테이너 */}
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
               <Link 
                 href="/" 
-                className="w-full sm:w-auto group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center"
+                className="w-full sm:w-auto group relative overflow-hidden px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center text-sm sm:text-base"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M9 6l-6 6 6 6"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M9 6l-6 6 6 6"/></svg>
                   메인 페이지로 돌아가기
                 </span>
               </Link>
               
               <Link 
                 href="/rag" 
-                className="w-full sm:w-auto group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center"
+                className="w-full sm:w-auto group relative overflow-hidden px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-center text-sm sm:text-base"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                   RAG 벡터 검색으로 이동
                 </span>
               </Link>
             </div>
             
             {/* 결과 표시 */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-8 border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-3 sm:p-4 md:p-6 lg:p-8 border border-gray-100 dark:border-gray-700">
               <ConversationResult 
                 title={title}
                 url={url}
