@@ -20,7 +20,7 @@ export default function Navbar() {
           <NavLink href="/save-chat" label="대화 저장" isActive={pathname === '/save-chat'} />
           <NavLink href="/rag" label="RAG 검색" isActive={pathname.startsWith('/rag')} />
           <NavLink href="/integrations" label="대화 찾아보기" isActive={pathname === '/integrations'} />
-          <NavLink href="/" label="대시보드" isActive={false} />
+          <NavLink href="/dashboard" label="대시보드" isActive={pathname === '/dashboard'} />
         </div>
 
         {/* 우측: 인증 버튼 */}
@@ -44,7 +44,7 @@ export default function Navbar() {
         <NavLink href="/save-chat" label="대화 저장" isActive={pathname === '/save-chat'} />
         <NavLink href="/rag" label="RAG 검색" isActive={pathname.startsWith('/rag')} />
         <NavLink href="/integrations" label="대화 찾아보기" isActive={pathname === '/integrations'} />
-        <NavLink href="/" label="대시보드" isActive={false} />
+        <NavLink href="/dashboard" label="대시보드" isActive={pathname === '/dashboard'} />
       </div>
     </nav>
   )
