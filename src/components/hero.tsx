@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import { FileText, Sparkles } from "lucide-react"
+import { FileText, Sparkles, ArrowRight } from "lucide-react"
 import { FloatingPaper } from "@/components/floating-paper"
 import { RoboAnimation } from "@/components/robo-animation"
 import { SparklesCore } from "@/components/sparkles"
@@ -68,51 +68,94 @@ export default function Hero() {
             ChatGPT 공유 기능 기반 지식 관리 시스템
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 max-w-5xl w-full mx-auto"
-          >
-            <Link href="/save-chat" className="group">
-              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 hover:border-purple-500/50">
-                <div className="p-3 sm:p-4 md:p-6">
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-purple-400 transition-colors">
-                    대화 저장
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-400">
-                    ChatGPT 공유 링크를 통해 대화 내용을 저장하고 관리합니다.
-                  </p>
+          {/* PC 화면에서만 카드 표시 */}
+          {!isMobile && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 max-w-5xl w-full mx-auto"
+            >
+              <Link href="/save-chat" className="group">
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 hover:border-purple-500/50">
+                  <div className="p-3 sm:p-4 md:p-6">
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-purple-400 transition-colors">
+                      대화 저장
+                    </h3>
+                    <p className="text-sm sm:text-base text-gray-400">
+                      ChatGPT 공유 링크를 통해 대화 내용을 저장하고 관리합니다.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-            
-            <Link href="/rag" className="group">
-              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-500/50">
-                <div className="p-3 sm:p-4 md:p-6">
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-blue-400 transition-colors">
-                    벡터 검색 (RAG)
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-400">
-                    저장된 대화 데이터를 바탕으로 벡터 검색 기능을 활용합니다.
-                  </p>
+              </Link>
+              
+              <Link href="/rag" className="group">
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-500/50">
+                  <div className="p-3 sm:p-4 md:p-6">
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-blue-400 transition-colors">
+                      벡터 검색 (RAG)
+                    </h3>
+                    <p className="text-sm sm:text-base text-gray-400">
+                      저장된 대화 데이터를 바탕으로 벡터 검색 기능을 활용합니다.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-            
-            <Link href="/integrations" className="group">
-              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-500/50">
-                <div className="p-3 sm:p-4 md:p-6">
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-green-400 transition-colors">
-                    대화 찾아보기
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-400">
-                    저장된 전체 대화 내용을 확인하고 관리합니다.
-                  </p>
+              </Link>
+              
+              <Link href="/integrations" className="group">
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-500/50">
+                  <div className="p-3 sm:p-4 md:p-6">
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-green-400 transition-colors">
+                      대화 찾아보기
+                    </h3>
+                    <p className="text-sm sm:text-base text-gray-400">
+                      저장된 전체 대화 내용을 확인하고 관리합니다.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          </motion.div>
+              </Link>
+            </motion.div>
+          )}
+
+          {/* 모바일 화면에서만 표시하는 간소화된 버튼들 */}
+          {isMobile && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="flex flex-col gap-3 mx-auto max-w-xs"
+            >
+              <Link href="/save-chat" className="group w-full">
+                <Button 
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white font-medium py-5 flex items-center justify-between"
+                  size="lg"
+                >
+                  <span>대화 저장</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              
+              <Link href="/rag" className="group w-full">
+                <Button 
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-medium py-5 flex items-center justify-between"
+                  size="lg"
+                >
+                  <span>벡터 검색 (RAG)</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              
+              <Link href="/integrations" className="group w-full">
+                <Button 
+                  className="w-full bg-gradient-to-r from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-medium py-5 flex items-center justify-between"
+                  size="lg"
+                >
+                  <span>대화 찾아보기</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            </motion.div>
+          )}
         </div>
       </div>
 

@@ -156,7 +156,7 @@ export default function SaveToObsidianButton({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="flex items-center gap-2 border-gray-200 dark:border-slate-700 bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200">
+          <Button variant="outline" className="w-full sm:w-auto flex items-center justify-center gap-2 border-gray-200 dark:border-slate-700 bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200">
             <DownloadIcon className="w-4 h-4" />
             <span>내보내기</span>
           </Button>
@@ -188,7 +188,7 @@ export default function SaveToObsidianButton({
       </DropdownMenu>
       
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 border border-gray-200 dark:border-slate-700">
+        <DialogContent className="sm:max-w-md max-w-[95vw] bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 border border-gray-200 dark:border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-gray-900 dark:text-white">옵시디언 Vault에 저장</DialogTitle>
             <DialogDescription className="text-gray-600 dark:text-slate-400">
@@ -215,12 +215,12 @@ export default function SaveToObsidianButton({
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsOpen(false)}
-              className="mb-2 sm:mb-0 border-gray-200 dark:border-slate-700 bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200"
+              className="mb-0 sm:mb-0 w-full sm:w-auto border-gray-200 dark:border-slate-700 bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200"
             >
               닫기
             </Button>
@@ -229,7 +229,7 @@ export default function SaveToObsidianButton({
                 type="button"
                 onClick={handleSaveToObsidian}
                 disabled={isLoading}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white"
               >
                 {isLoading ? (
                   <>

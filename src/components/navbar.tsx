@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Hexagon } from "lucide-react"
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -11,8 +12,15 @@ export default function Navbar() {
     <nav className="w-full py-6 px-6 sm:px-8">
       <div className="container mx-auto flex justify-between items-center">
         {/* 좌측: 로고 */}
-        <Link href="/" className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-          PKM AI
+        <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
+          <div className="relative flex items-center justify-center w-10 h-10 group-hover:scale-105 transition-transform">
+            <div className="absolute inset-0 bg-purple-600/50 blur-md rounded-full animate-pulse"></div>
+            <div className="absolute inset-1 bg-purple-500/40 blur-sm rounded-full"></div>
+            <Hexagon className="h-8 w-8 text-purple-400 relative z-10" />
+          </div>
+          <span className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 group-hover:opacity-80 transition-opacity">
+            PKM AI
+          </span>
         </Link>
 
         {/* 중앙: 메인 메뉴 - 모바일에서는 숨김 */}
