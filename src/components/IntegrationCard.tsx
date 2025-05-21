@@ -8,6 +8,7 @@ import { ChatSession } from "@/types"
 
 type IntegrationCardProps = {
   integration: Integration & { url?: string; chatSession?: Partial<ChatSession> }
+  categoryCount?: number
 }
 
 // 카테고리별 색상 매핑
@@ -20,6 +21,9 @@ const categoryColors: Record<string, string> = {
   "생활": "#6366f1", // indigo-500
   "건강": "#ef4444", // red-500
   "기타": "#64748b", // slate-500
+  "여행": "#0ea5e9", // sky-500
+  "기술": "#a855f7", // purple-500
+  "경제": "#f97316", // orange-500
   "Analytics": "#3b82f6",
   "Marketing": "#ec4899",
   "Productivity": "#8b5cf6",
@@ -36,7 +40,7 @@ const categoryColors: Record<string, string> = {
   "Social Media": "#8b5cf6"
 }
 
-export default function IntegrationCard({ integration }: IntegrationCardProps) {
+export default function IntegrationCard({ integration, categoryCount }: IntegrationCardProps) {
   // Icon 타입을 LucideIcon으로 명시적으로 지정합니다
   const Icon = integration.icon as React.ElementType
   const chatSession = integration.chatSession
@@ -63,25 +67,26 @@ export default function IntegrationCard({ integration }: IntegrationCardProps) {
     : null
 
   return (
-    <Link href={url} className="block">
-      <Card className="hover:shadow-lg transition-all duration-300 group h-full bg-gray-800 border-gray-700 hover:bg-gray-750 hover:border-purple-600/40">
+    <Link href={url} className="block h-full">
+      <Card className="hover:shadow-lg transition-all duration-300 group h-full bg-gray-800 border-gray-700 hover:border-purple-500/50 hover:transform hover:scale-[1.02] relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/0 via-purple-600/0 to-purple-600/0 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
         <CardContent className="p-4 flex flex-col h-full">
           {/* 헤더 섹션 */}
           <div className="flex items-start justify-between mb-2">
             {/* 아이콘과 카테고리 정보 */}
             <div className="flex items-center">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center mr-2"
+                className="w-8 h-8 rounded-full flex items-center justify-center mr-2 transition-transform group-hover:scale-110"
                 style={{ backgroundColor: `${color}20` }}
               >
                 {/* Icon을 JSX 요소로 렌더링 */}
                 <Icon
-                  className="w-4 h-4"
+                  className="w-4 h-4 transition-all group-hover:text-white"
                   style={{ color }}
                 />
               </div>
               <div>
-                <div className="text-xs font-medium" style={{ color }}>
+                <div className="text-xs font-medium transition-colors" style={{ color }}>
                   {category}
                   {subCategory && ` / ${subCategory}`}
                 </div>
@@ -98,12 +103,12 @@ export default function IntegrationCard({ integration }: IntegrationCardProps) {
           </div>
           
           {/* 제목 */}
-          <h3 className="font-semibold text-sm text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+          <h3 className="font-semibold text-sm text-white mb-2 group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:via-purple-500 group-hover:to-pink-500 transition-all duration-300">
             {title}
           </h3>
           
           {/* 요약 */}
-          <p className="text-xs text-gray-400 flex-grow overflow-hidden">
+          <p className="text-xs text-gray-400 flex-grow overflow-hidden group-hover:text-gray-300 transition-colors">
             {summary.length > 150
               ? `${summary.substring(0, 150)}...`
               : summary}
@@ -116,16 +121,21 @@ export default function IntegrationCard({ integration }: IntegrationCardProps) {
               {tags.slice(0, 2).map(tag => (
                 <span 
                   key={tag} 
-                  className="text-xs bg-gray-700 px-2 py-0.5 rounded-full"
+                  className="text-xs bg-gray-700 px-2 py-0.5 rounded-full group-hover:bg-gray-600 transition-colors"
                 >
                   {tag}
                 </span>
               ))}
+              {tags.length > 2 && (
+                <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full group-hover:bg-gray-600 transition-colors">
+                  +{tags.length - 2}
+                </span>
+              )}
             </div>
             
             {/* 메타데이터 */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 flex items-center">
+              <span className="text-xs text-gray-400 flex items-center group-hover:text-gray-300 transition-colors">
                 <MessageSquare className="w-3 h-3 mr-1" />
                 {messageCount}
               </span>

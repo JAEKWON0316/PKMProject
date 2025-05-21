@@ -4,28 +4,38 @@ type CategoryFilterProps = {
   categories: string[]
   selectedCategory: string
   onSelectCategory: (category: string) => void
+  counts?: Record<string, number>
 }
 
-export default function CategoryFilter({ categories, selectedCategory, onSelectCategory }: CategoryFilterProps) {
+export default function CategoryFilter({ 
+  categories, 
+  selectedCategory, 
+  onSelectCategory,
+  counts = {}
+}: CategoryFilterProps) {
   return (
-    <aside className="w-48 bg-white shadow-md flex flex-col h-screen">
-      <div className="p-4">
-        <h2 className="text-lg font-semibold mb-2">Categories</h2>
+    <div className="w-full">
+      <h2 className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">카테고리</h2>
+      <div className="space-y-1">
+        {categories.map((category) => (
+          <button
+            key={category}
+            onClick={() => onSelectCategory(category)}
+            className={`w-full text-left px-3 py-2 rounded-md text-sm flex justify-between items-center ${
+              selectedCategory === category
+                ? "bg-purple-600 text-white"
+                : "text-gray-300 hover:bg-gray-700"
+            }`}
+          >
+            <span>{category}</span>
+            {counts && (
+              <span className="text-xs bg-gray-700 px-2 py-1 rounded-full">
+                {counts[category] || 0}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
-      <div className="flex-1 overflow-auto">
-        <div className="space-y-1 p-4 pt-0">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "ghost"}
-              className="w-full justify-start text-sm py-1 px-2 h-auto"
-              onClick={() => onSelectCategory(category)}
-            >
-              {category}
-            </Button>
-          ))}
-        </div>
-      </div>
-    </aside>
+    </div>
   )
 }

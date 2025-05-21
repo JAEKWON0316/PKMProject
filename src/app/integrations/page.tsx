@@ -253,7 +253,14 @@ function IntegrationsContent() {
       
       {/* 메인 콘텐츠 영역 */}
       <div className="flex-1 overflow-auto pt-16 pb-4 px-3 sm:px-4 md:px-6">
-        {/* 모바일에서만 표시되는 드롭다운 카테고리 선택 */}
+   
+        {/* 헤더 텍스트 */}
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold text-purple-500 mb-1">대화 찾아보기</h1>
+          <p className="text-gray-300">공유한 내역들을 확인해보세요.</p>
+        </div>
+
+             {/* 모바일에서만 표시되는 드롭다운 카테고리 선택 */}
         <div className="mb-4 md:hidden">
           <div className="relative">
             <select
@@ -275,41 +282,73 @@ function IntegrationsContent() {
           </div>
         </div>
         
+        
         {/* 검색창 */}
-        <div className="mb-6">
+        <div className="mb-6 border-b">
           <SearchBar 
             onSearch={handleSearch}
             initialValue={initialQuery}
             initialMode={initialMode}
           />
         </div>
-        
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin h-8 w-8 border-4 border-gray-300 border-t-purple-500 rounded-full"></div>
-            <p className="mt-4 text-gray-400">대화 내용을 불러오는 중...</p>
-          </div>
-        ) : paginatedSessions.length === 0 ? (
-          <div className="text-center py-16 bg-gray-800 rounded-2xl border border-gray-700 text-gray-400">
-            <p className="text-xl mb-2">대화를 찾을 수 없습니다.</p>
-            <p>검색어를 변경하거나 다른 카테고리를 선택해 보세요.</p>
-          </div>
-        ) : (
-          <>
-            <IntegrationGrid integrations={[]} chatSessions={paginatedSessions} />
-            
-            {/* 페이지네이션 */}
-            {totalPages > 1 && (
-              <div className="mt-6">
-                <Pagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                />
+
+         {/* 대화 목록 영역 */}
+         <div className="flex-1 overflow-auto p-4 md:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <span className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">{category}</span>
+              <span className="text-sm text-gray-400 ml-2">
+                ({filteredSessions.length}개 대화)
+              </span>
+            </div>
+            {query && (
+              <div className="text-sm text-gray-400">
+                <span>
+                  {searchMode === "title" ? "제목" : 
+                   searchMode === "summary" ? "요약" : "제목+요약"}
+                </span>
+                <span>에서 </span>
+                <span className="text-gray-300">"{query}"</span>
+                <span> 검색 중</span>
+                {isSearching && <span className="ml-2 animate-pulse">🔍</span>}
               </div>
             )}
-          </>
-        )}
+          </div>
+        
+          {loading ? (
+            <div className="text-center py-16 text-gray-400">
+              <p className="text-xl">대화를 불러오는 중...</p>
+            </div>
+          ) : filteredSessions.length > 0 ? (
+            <>
+              <IntegrationGrid chatSessions={paginatedSessions} integrations={[]} />
+              {totalPages > 1 && (
+                <div className="mt-6">
+                  <Pagination 
+                    currentPage={page} 
+                    totalPages={totalPages} 
+                    onPageChange={handlePageChange} 
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-16 text-gray-400">
+              {query ? (
+                <div>
+                  <p className="text-xl mb-2">
+                    {searchMode === "title" ? "제목" : 
+                     searchMode === "summary" ? "요약" : "제목 또는 요약"}
+                    에 "{query}"가 포함된 대화가 없습니다
+                  </p>
+                  <p className="text-sm">다른 검색어를 시도하거나 검색 모드를 변경해보세요</p>
+                </div>
+              ) : (
+                <p className="text-xl">이 카테고리에 대화가 없습니다</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
