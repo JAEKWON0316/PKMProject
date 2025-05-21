@@ -156,30 +156,30 @@ export default function SaveToObsidianButton({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button variant="outline" className="flex items-center gap-2 border-gray-200 dark:border-slate-700 bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200">
             <DownloadIcon className="w-4 h-4" />
             <span>내보내기</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
-          <DropdownMenuLabel>파일 내보내기</DropdownMenuLabel>
-          <DropdownMenuSeparator />
+        <DropdownMenuContent className="w-56 bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700">
+          <DropdownMenuLabel className="text-gray-700 dark:text-slate-200">파일 내보내기</DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-gray-200 dark:bg-slate-700" />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={handleDownloadMarkdown}>
+            <DropdownMenuItem onClick={handleDownloadMarkdown} className="text-gray-700 dark:text-slate-200 focus:bg-gray-100 dark:focus:bg-slate-800">
               <FileTextIcon className="mr-2 h-4 w-4" />
               <span>마크다운 (.md) 다운로드</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDownloadJson}>
+            <DropdownMenuItem onClick={handleDownloadJson} className="text-gray-700 dark:text-slate-200 focus:bg-gray-100 dark:focus:bg-slate-800">
               <FileJsonIcon className="mr-2 h-4 w-4" />
               <span>JSON 다운로드</span>
             </DropdownMenuItem>
             {fsApiSupported && (
               <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsOpen(true)}>
+                <DropdownMenuSeparator className="bg-gray-200 dark:bg-slate-700" />
+                <DropdownMenuItem onClick={() => setIsOpen(true)} className="text-gray-700 dark:text-slate-200 focus:bg-gray-100 dark:focus:bg-slate-800">
                   <FolderOpenIcon className="mr-2 h-4 w-4" />
                   <span>옵시디언 Vault에 저장</span>
-                  <span className="ml-1 text-xs text-gray-400">(고급)</span>
+                  <span className="ml-1 text-xs text-gray-400 dark:text-slate-500">(고급)</span>
                 </DropdownMenuItem>
               </>
             )}
@@ -188,20 +188,20 @@ export default function SaveToObsidianButton({
       </DropdownMenu>
       
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 border border-gray-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle>옵시디언 Vault에 저장</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-gray-900 dark:text-white">옵시디언 Vault에 저장</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-slate-400">
               대화 내용을 선택한 옵시디언 Vault에 저장합니다.
             </DialogDescription>
           </DialogHeader>
           
           {status.success === undefined ? (
             <div className="py-4 text-center">
-              <p className="mb-4">
+              <p className="mb-4 text-gray-800 dark:text-slate-200">
                 다음 파일들이 선택한 폴더에 저장됩니다:
               </p>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2 text-left">
+              <ul className="text-sm text-gray-600 dark:text-slate-400 space-y-2 text-left">
                 <li><FileTextIcon className="inline w-4 h-4 mr-2" /> {conversation.title}.md <span className="text-xs">(ChatGPT 폴더)</span></li>
                 <li><FileTextIcon className="inline w-4 h-4 mr-2" /> {conversation.title}-original.txt <span className="text-xs">(ChatGPT 폴더)</span></li>
                 <li><FileJsonIcon className="inline w-4 h-4 mr-2" /> {conversation.title}-{Date.now()}.json <span className="text-xs">(_data/conversations 폴더)</span></li>
@@ -210,8 +210,8 @@ export default function SaveToObsidianButton({
           ) : (
             <div className="py-4 text-center">
               <XCircleIcon className="w-12 h-12 mx-auto text-red-500 mb-2" />
-              <p className="text-lg font-medium">저장 실패</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{status.message}</p>
+              <p className="text-lg font-medium text-gray-800 dark:text-slate-200">저장 실패</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{status.message}</p>
             </div>
           )}
           
@@ -220,7 +220,7 @@ export default function SaveToObsidianButton({
               type="button"
               variant="outline"
               onClick={() => setIsOpen(false)}
-              className="mb-2 sm:mb-0"
+              className="mb-2 sm:mb-0 border-gray-200 dark:border-slate-700 bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200"
             >
               닫기
             </Button>
@@ -229,7 +229,7 @@ export default function SaveToObsidianButton({
                 type="button"
                 onClick={handleSaveToObsidian}
                 disabled={isLoading}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white"
               >
                 {isLoading ? (
                   <>
