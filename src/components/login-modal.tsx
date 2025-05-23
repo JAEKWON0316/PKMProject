@@ -41,7 +41,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       />
       
       {/* 모달 컨텐츠 */}
-      <div className="relative z-10 mx-2 sm:mx-4 w-full max-w-sm sm:max-w-md">
+      <div className="relative z-10 mx-1 sm:mx-4 w-full max-w-xs sm:max-w-md">
         {/* 닫기 버튼 */}
         <button
           onClick={onClose}
@@ -51,7 +51,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         </button>
         
         {/* 로그인 카드 */}
-        <div className="scale-90 sm:scale-100 origin-center">
+        <div className="scale-80 sm:scale-100 origin-center">
           <LoginCard />
         </div>
       </div>
