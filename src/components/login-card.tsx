@@ -11,9 +11,9 @@ export function LoginCard() {
   const [email, setEmail] = useState("")
 
   return (
-    <div className="w-full max-w-md rounded-xl bg-[#1a1a1a] p-8 text-white shadow-xl">
-      <div className="mb-8 flex justify-center">
-        <div className="relative h-20 w-20">
+    <div className="w-full max-w-md rounded-xl bg-[#1a1a1a] p-4 sm:p-8 text-white shadow-xl">
+      <div className="mb-4 sm:mb-8 flex justify-center">
+        <div className="relative h-12 w-12 sm:h-20 sm:w-20">
           <Image
             src="/pkm001.png"
             alt="PKM Brain Logo"
@@ -24,11 +24,11 @@ export function LoginCard() {
         </div>
       </div>
 
-      <h1 className="mb-10 text-center text-2xl font-bold">
-        <span className="text-[#b975ff]">PKM AI</span>에 오신 것을 환영합니다.
+      <h1 className="mb-6 sm:mb-10 text-center text-xl sm:text-2xl font-bold">
+        <span className="text-[#b975ff]">pkm</span>에 오신 것을 환영합니다.
       </h1>
 
-      <div className="mb-8">
+      <div className="mb-4 sm:mb-6">
         <p className="mb-3 text-center text-sm font-light">시작하려면 이메일을 입력하세요.</p>
         <div className="relative">
           <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이메일</label>
@@ -37,49 +37,49 @@ export function LoginCard() {
             placeholder="yours@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="border border-[#333] bg-transparent py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="border border-[#333] bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
       </div>
 
       <Button
-        className="w-full bg-[#b975ff] py-6 text-base font-medium text-white hover:bg-[#a35ce0]"
+        className="w-full bg-[#b975ff] py-4 sm:py-6 text-base font-medium text-white hover:bg-[#a35ce0]"
         onClick={() => console.log("코드 발송", email)}
       >
         코드 받기
       </Button>
 
-      <div className="mt-4 text-center">
+      <div className="mt-3 sm:mt-4 text-center">
         <button className="text-sm font-light text-[#b975ff] hover:underline">비밀번호 사용</button>
       </div>
 
-      <div className="my-8 flex items-center gap-4">
+      <div className="my-6 sm:my-8 flex items-center gap-4">
         <div className="h-px flex-1 bg-[#333]"></div>
         <span className="text-sm text-gray-400">또는</span>
         <div className="h-px flex-1 bg-[#333]"></div>
       </div>
 
-      <Button className="mb-4 w-full justify-center gap-3 border border-[#333] bg-white py-6 text-base font-medium text-black hover:bg-gray-100">
+      <Button className="mb-3 sm:mb-4 w-full justify-center gap-3 border border-[#333] bg-white py-4 sm:py-6 text-base font-medium text-black hover:bg-gray-100">
         <GoogleIcon />
         <span>Google로 계속하기</span>
       </Button>
 
-      <div className="mb-4 grid grid-cols-4 gap-3">
-        <Button className="flex h-12 w-full items-center justify-center rounded-md border border-[#333] bg-white p-0 text-black hover:bg-gray-100">
-          <Apple className="h-6 w-6" />
+      <div className="mb-3 sm:mb-4 grid grid-cols-4 gap-3">
+        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-white p-0 text-black hover:bg-gray-100">
+          <Apple className="h-5 w-5 sm:h-6 sm:w-6" />
         </Button>
-        <Button className="flex h-12 w-full items-center justify-center rounded-md border border-[#333] bg-black p-0 text-white hover:bg-gray-900">
-          <Github className="h-6 w-6" />
+        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-black p-0 text-white hover:bg-gray-900">
+          <Github className="h-5 w-5 sm:h-6 sm:w-6" />
         </Button>
-        <Button className="flex h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#1877F2] p-0 text-white hover:bg-[#166fe5]">
+        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#1877F2] p-0 text-white hover:bg-[#166fe5]">
           <FacebookIcon />
         </Button>
-        <Button className="flex h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#5865F2] p-0 text-white hover:bg-[#4752c4]">
+        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#5865F2] p-0 text-white hover:bg-[#4752c4]">
           <DiscordIcon />
         </Button>
       </div>
 
-      <div className="mt-10 text-center text-xs font-light text-gray-400">
+      <div className="mt-6 sm:mt-10 text-center text-xs font-light text-gray-400">
         계속함으로써 귀하는 우리의{" "}
         <Link href="#" className="text-[#b975ff] hover:underline">
           서비스 약관
