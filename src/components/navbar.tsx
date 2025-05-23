@@ -13,44 +13,64 @@ export default function Navbar() {
   return (
     <>
       <nav className="w-full py-4 px-4 sm:py-6 sm:px-6 md:px-8">
-        <div className="container mx-auto flex justify-between items-center">
+        {/* 데스크탑 레이아웃 */}
+        <div className="hidden md:block">
+          <div className="container mx-auto flex justify-between items-center">
+            {/* 좌측: 로고 */}
+            <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
+              <div className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 group-hover:scale-105 transition-transform">
+                <div className="absolute inset-0 bg-purple-600/50 blur-md rounded-full animate-pulse"></div>
+                <div className="absolute inset-1 bg-purple-500/40 blur-sm rounded-full"></div>
+                <Hexagon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-400 relative z-10" />
+              </div>
+              <span className="font-bold text-lg sm:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 group-hover:opacity-80 transition-opacity">
+                PKM AI
+              </span>
+            </Link>
+
+            {/* 데스크탑: 중앙 메뉴 */}
+            <div className="flex space-x-8 absolute left-1/2 transform -translate-x-1/2">
+              <NavLink href="/save-chat" label="대화 저장" isActive={pathname === '/save-chat'} />
+              <NavLink href="/rag" label="RAG 검색" isActive={pathname.startsWith('/rag')} />
+              <NavLink href="/integrations" label="대화 찾아보기" isActive={pathname === '/integrations'} />
+              <NavLink href="/dashboard" label="대시보드" isActive={pathname === '/dashboard'} />
+            </div>
+
+            {/* 데스크탑: 우측 버튼들 */}
+            <div className="flex items-center space-x-3 sm:space-x-5">
+              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white text-base">
+                로그인
+              </Button>
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-base">
+                Get Started
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* 모바일 레이아웃 */}
+        <div className="md:hidden flex justify-between items-center w-full px-1">
           {/* 좌측: 로고 */}
           <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
-            <div className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 group-hover:scale-105 transition-transform">
+            <div className="relative flex items-center justify-center w-8 h-8 group-hover:scale-105 transition-transform">
               <div className="absolute inset-0 bg-purple-600/50 blur-md rounded-full animate-pulse"></div>
               <div className="absolute inset-1 bg-purple-500/40 blur-sm rounded-full"></div>
-              <Hexagon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-400 relative z-10" />
+              <Hexagon className="h-6 w-6 text-purple-400 relative z-10" />
             </div>
-            <span className="font-bold text-lg sm:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 group-hover:opacity-80 transition-opacity">
+            <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 group-hover:opacity-80 transition-opacity">
               PKM AI
             </span>
           </Link>
 
-          {/* 데스크탑: 중앙 메뉴 */}
-          <div className="hidden md:flex space-x-8 absolute left-1/2 transform -translate-x-1/2">
-            <NavLink href="/save-chat" label="대화 저장" isActive={pathname === '/save-chat'} />
-            <NavLink href="/rag" label="RAG 검색" isActive={pathname.startsWith('/rag')} />
-            <NavLink href="/integrations" label="대화 찾아보기" isActive={pathname === '/integrations'} />
-            <NavLink href="/dashboard" label="대시보드" isActive={pathname === '/dashboard'} />
-          </div>
-
-          {/* 데스크탑: 우측 버튼들 */}
-          <div className="hidden md:flex items-center space-x-3 sm:space-x-5">
-            <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white text-base">
-              로그인
-            </Button>
-            <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-base">
-              Get Started
-            </Button>
-          </div>
-
           {/* 모바일: 우측 버튼들 */}
-          <div className="flex md:hidden items-center space-x-2">
+          <div className="flex items-center space-x-2">
             <Button 
               size="sm" 
-              className="bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white text-sm px-3 py-2"
+              className="ripple-button text-white text-sm px-3 py-2 opacity-90 hover:opacity-100 transition-opacity duration-300 shadow-lg relative z-10"
             >
-              무료로 시작하기
+              <span className="font-medium relative z-10">
+                무료로 시작하기
+              </span>
             </Button>
             <Button
               variant="ghost"

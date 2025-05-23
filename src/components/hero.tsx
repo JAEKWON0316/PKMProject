@@ -56,7 +56,8 @@ export default function Hero() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6">
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-                  PKM Project
+                지식 관리를 위한<br></br>
+                스마트 AI 어시스턴트
                 </span>
               </h1>
             </motion.div>
@@ -133,7 +134,7 @@ export default function Hero() {
                   지식 관리를 위한<br />스마트 AI 어시스턴트
                 </span>
               </h1>
-              <p className="text-gray-300 text-lg leading-relaxed">
+              <p className="text-gray-300 text-md leading-relaxed">
                 PKM은 ChatGPT 대화를 체계적으로 저장하고 관리하여, 개발자, 연구자, 학습자들이 축적된 지식을 효과적으로 활용할 수 있도록 돕는 AI 기반 지식 관리 파트너입니다.
               </p>
             </motion.div>
@@ -147,10 +148,12 @@ export default function Hero() {
             >
               <Link href="/save-chat">
                 <Button 
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white font-semibold py-4 text-lg rounded-lg shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+                  className="w-full ripple-button text-white font-semibold py-4 text-lg rounded-lg shadow-lg transition-opacity duration-300 opacity-90 hover:opacity-100 relative z-10"
                   size="lg"
                 >
-                  무료로 시작하세요
+                  <span className="font-semibold relative z-10">
+                    무료로 시작하세요
+                  </span>
                 </Button>
               </Link>
             </motion.div>
