@@ -221,7 +221,7 @@ function IntegrationsContent() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
       {/* 왼쪽 사이드바 - 카테고리 필터 (태블릿/데스크탑에서만 표시) */}
-      <div className="w-64 hidden md:block bg-gray-800 border-r border-gray-700 overflow-auto pt-16">
+      <div className="w-64 hidden md:block bg-gray-800 border-r border-gray-700 overflow-auto pt-20 md:pt-28">
         <div className="p-4">
           <h2 className="text-lg font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">카테고리</h2>
           <div className="space-y-1">
@@ -248,7 +248,7 @@ function IntegrationsContent() {
       </div>
       
       {/* 메인 콘텐츠 영역 */}
-      <div className="flex-1 overflow-auto pt-16 pb-4 px-3 sm:px-4 md:px-6">
+      <div className="flex-1 overflow-auto pt-20 md:pt-28 pb-4 px-3 sm:px-4 md:px-6">
    
         {/* 헤더 텍스트 */}
         <div className="mb-6 text-center">

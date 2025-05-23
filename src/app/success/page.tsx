@@ -53,7 +53,7 @@ export default async function SuccessPage({ searchParams }: PageProps) {
     // 화면에 표시할 ConversationResult 컴포넌트 반환
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-16 pt-16">
+        <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-16 pt-20 md:pt-28">
           <div className="max-w-5xl mx-auto">
             {/* 헤더 섹션 */}
             <div className="text-center mb-6 sm:mb-8">

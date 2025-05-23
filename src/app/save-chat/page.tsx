@@ -75,7 +75,7 @@ export default function SaveChat() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-12 pt-20 md:pt-24">
+      <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-12 pt-20 md:pt-28">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

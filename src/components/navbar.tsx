@@ -3,25 +3,35 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Hexagon, Menu, X } from "lucide-react"
+import { Menu, X } from "lucide-react"
 import { useState } from "react"
+import Image from "next/image"
+import { LoginModal } from "./login-modal"
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // 메인페이지 여부 확인
+  const isMainPage = pathname === '/';
 
   return (
     <>
-      <nav className="w-full py-4 px-4 sm:py-6 sm:px-6 md:px-8">
+      <nav className={`${isMainPage ? 'w-full' : 'fixed top-0 left-0 w-full'} z-50 py-3 px-4 sm:py-4 sm:px-6 md:px-8 ${isMainPage ? 'bg-black/[0.96]' : 'bg-gray-900/95'} backdrop-blur-sm`}>
         {/* 데스크탑 레이아웃 */}
         <div className="hidden md:block">
           <div className="container mx-auto flex justify-between items-center">
             {/* 좌측: 로고 */}
             <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
               <div className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 group-hover:scale-105 transition-transform">
-                <div className="absolute inset-0 bg-purple-600/50 blur-md rounded-full animate-pulse"></div>
-                <div className="absolute inset-1 bg-purple-500/40 blur-sm rounded-full"></div>
-                <Hexagon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-400 relative z-10" />
+                <Image 
+                  src="/pkm001.png" 
+                  alt="PKM AI Logo" 
+                  width={32} 
+                  height={32} 
+                  className="h-6 w-6 sm:h-8 sm:w-8 relative z-10 object-contain"
+                />
               </div>
               <span className="font-bold text-lg sm:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 group-hover:opacity-80 transition-opacity">
                 PKM AI
@@ -38,11 +48,22 @@ export default function Navbar() {
 
             {/* 데스크탑: 우측 버튼들 */}
             <div className="flex items-center space-x-3 sm:space-x-5">
-              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white text-base">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-gray-300 hover:text-white text-base"
+                onClick={() => setIsLoginModalOpen(true)}
+              >
                 로그인
               </Button>
-              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-base">
-                Get Started
+              <Button 
+                size="sm" 
+                className="ripple-button text-white text-base"
+                onClick={() => setIsLoginModalOpen(true)}
+              >
+                <span className="font-medium relative z-10">
+                  Get Started
+                </span>
               </Button>
             </div>
           </div>
@@ -52,10 +73,14 @@ export default function Navbar() {
         <div className="md:hidden flex justify-between items-center w-full px-1">
           {/* 좌측: 로고 */}
           <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
-            <div className="relative flex items-center justify-center w-8 h-8 group-hover:scale-105 transition-transform">
-              <div className="absolute inset-0 bg-purple-600/50 blur-md rounded-full animate-pulse"></div>
-              <div className="absolute inset-1 bg-purple-500/40 blur-sm rounded-full"></div>
-              <Hexagon className="h-6 w-6 text-purple-400 relative z-10" />
+            <div className="relative flex items-center justify-center w-10 h-10 group-hover:scale-105 transition-transform">
+              <Image 
+                src="/pkm001.png" 
+                alt="PKM AI Logo" 
+                width={32} 
+                height={32} 
+                className="h-8 w-8 relative z-10 object-contain"
+              />
             </div>
             <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 group-hover:opacity-80 transition-opacity">
               PKM AI
@@ -67,6 +92,7 @@ export default function Navbar() {
             <Button 
               size="sm" 
               className="ripple-button text-white text-sm px-3 py-2 opacity-90 hover:opacity-100 transition-opacity duration-300 shadow-lg relative z-10"
+              onClick={() => setIsLoginModalOpen(true)}
             >
               <span className="font-medium relative z-10">
                 무료로 시작하기
@@ -86,7 +112,7 @@ export default function Navbar() {
 
       {/* 모바일 메뉴 드롭다운 */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-gray-900/95 backdrop-blur-sm border-t border-gray-800">
+        <div className="md:hidden fixed top-[64px] left-0 w-full z-40 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800">
           <div className="container mx-auto px-4 py-4 space-y-3">
             <MobileNavLink 
               href="/save-chat" 
@@ -113,13 +139,27 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <div className="pt-2 border-t border-gray-800">
-              <Button variant="ghost" size="sm" className="w-full text-gray-300 hover:text-white justify-start">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full text-gray-300 hover:text-white justify-start"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+              >
                 로그인
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* 로그인 모달 */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </>
   )
 }

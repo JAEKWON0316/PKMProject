@@ -30,7 +30,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <div className="relative min-h-[calc(100vh-76px)] flex items-center">
+    <div className="relative min-h-screen flex items-center">
       {/* Sparkles background */}
       <div className="absolute inset-0 z-0">
         <SparklesCore

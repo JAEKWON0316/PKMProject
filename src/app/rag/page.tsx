@@ -123,7 +123,7 @@ export default function RagPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-6 sm:py-16">
+      <div className="container mx-auto px-4 py-6 sm:py-16 pt-20 md:pt-28">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
