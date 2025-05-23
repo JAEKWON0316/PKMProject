@@ -1,9 +1,12 @@
-'use client'
+"use client"
 
 import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import SaveToObsidianButton from '@/components/SaveToObsidianButton'
+import { FloatingPaper } from '@/components/floating-paper'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import HomeLogoButton from '@/components/HomeLogoButton'
 
 export default function SaveChat() {
   const [url, setUrl] = useState('')
@@ -72,10 +75,7 @@ export default function SaveChat() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-      {/* 홈 로고 버튼 */}
-      <HomeLogoButton />
-      
-      <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-12 pt-16">
+      <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-12 pt-20 md:pt-24">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

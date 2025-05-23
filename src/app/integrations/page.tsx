@@ -9,7 +9,6 @@ import Pagination from "@/components/Pagination"
 import { getAllChatSessions } from "@/utils/supabaseHandler"
 import { ChatSession } from "@/types"
 import { PREDEFINED_CATEGORIES } from "@/utils/categoryClassifier"
-import HomeLogoButton from "@/components/HomeLogoButton"
 import Link from "next/link"
 
 // 메인 카테고리 목록 (정의된 카테고리 사용)
@@ -221,9 +220,6 @@ function IntegrationsContent() {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
-      {/* 홈 로고 버튼 */}
-      <HomeLogoButton />
-      
       {/* 왼쪽 사이드바 - 카테고리 필터 (태블릿/데스크탑에서만 표시) */}
       <div className="w-64 hidden md:block bg-gray-800 border-r border-gray-700 overflow-auto pt-16">
         <div className="p-4">

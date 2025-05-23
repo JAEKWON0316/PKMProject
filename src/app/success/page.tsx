@@ -3,7 +3,6 @@ import Link from 'next/link';
 import ConversationResult from '@/components/ConversationResult';
 import { getChatSessionById } from '@/utils/supabaseHandler';
 import { ChatMessage, ChatSession } from '@/types';
-import HomeLogoButton from '@/components/HomeLogoButton';
 
 interface PageProps {
   searchParams: {
@@ -54,9 +53,6 @@ export default async function SuccessPage({ searchParams }: PageProps) {
     // 화면에 표시할 ConversationResult 컴포넌트 반환
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
-        {/* 홈 로고 버튼 */}
-        <HomeLogoButton />
-        
         <div className="container mx-auto px-3 sm:px-4 py-8 sm:py-16 pt-16">
           <div className="max-w-5xl mx-auto">
             {/* 헤더 섹션 */}

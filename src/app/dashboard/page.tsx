@@ -222,13 +222,9 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex items-center justify-between py-4 border-b border-slate-700/50 mb-6">
           <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
-            <div className="relative flex items-center justify-center w-10 h-10 group-hover:scale-105 transition-transform">
-              <div className="absolute inset-0 bg-purple-600/50 blur-md rounded-full animate-pulse"></div>
-              <div className="absolute inset-1 bg-purple-500/40 blur-sm rounded-full"></div>
-              <Hexagon className="h-8 w-8 text-purple-400 relative z-10" />
-            </div>
+          
             <span className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
-              PKM AI
+              DASHBOARD
             </span>
           </Link>
 

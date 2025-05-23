@@ -303,7 +303,7 @@
   overflow: hidden;
   background: linear-gradient(-45deg, #000000, #8B5CF6, #000000, #A855F7, #1a1a1a, #9333EA, #000000, #7C3AED);
   background-size: 600% 600%;
-  animation: purpleWave 6s ease infinite;
+  animation: purpleWave 8s ease infinite;
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
@@ -317,7 +317,7 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(139, 92, 246, 0.3) 50%, rgba(0, 0, 0, 0.2) 100%);
   transform: translate(-50%, -50%);
-  animation: ripple 4s infinite;
+  animation: ripple 5s infinite;
 }
 
 .ripple-button::after {
@@ -330,7 +330,7 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(0, 0, 0, 0.6) 0%, rgba(139, 92, 246, 0.4) 40%, transparent 70%);
   transform: translate(-50%, -50%);
-  animation: darkRipple 5s infinite 1.2s;
+  animation: darkRipple 6s infinite 1.2s;
 }
 
 /* 호버 시 더 강한 리플 효과 */
@@ -341,12 +341,12 @@
 }
 
 .ripple-button:hover::before {
-  animation: ripple 3s infinite;
+  animation: ripple 4s infinite;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(168, 85, 247, 0.4) 50%, rgba(0, 0, 0, 0.3) 100%);
 }
 
 .ripple-button:hover::after {
-  animation: darkRipple 3.5s infinite 0.8s;
+  animation: darkRipple 4.5s infinite 0.8s;
   background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(168, 85, 247, 0.5) 30%, transparent 60%);
 }
 
