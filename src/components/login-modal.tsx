@@ -41,17 +41,19 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       />
       
       {/* 모달 컨텐츠 */}
-      <div className="relative z-10 mx-4">
+      <div className="relative z-10 mx-2 sm:mx-4 w-full max-w-sm sm:max-w-md">
         {/* 닫기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute -top-4 -right-4 z-20 rounded-full bg-gray-800 p-2 text-white hover:bg-gray-700 transition-colors"
+          className="absolute -top-2 -right-2 sm:-top-4 sm:-right-4 z-20 rounded-full bg-gray-800 p-1.5 sm:p-2 text-white hover:bg-gray-700 transition-colors"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         
         {/* 로그인 카드 */}
-        <LoginCard />
+        <div className="scale-90 sm:scale-100 origin-center">
+          <LoginCard />
+        </div>
       </div>
     </div>
   )
