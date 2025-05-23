@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
-import { X } from "lucide-react"
+import { useEffect, useState } from "react"
+import { X, ArrowLeft } from "lucide-react"
 import { LoginCard } from "./login-card"
 
 interface LoginModalProps {
@@ -10,6 +10,9 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const [resetToEmailMode, setResetToEmailMode] = useState(false)
+  const [isPasswordMode, setIsPasswordMode] = useState(false)
+
   // ESC 키로 모달 닫기
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
@@ -30,6 +33,18 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   }, [isOpen, onClose])
 
+  // 뒤로가기 버튼 클릭 핸들러
+  const handleBackClick = () => {
+    setResetToEmailMode(true)
+    // 리셋 후 상태 초기화
+    setTimeout(() => setResetToEmailMode(false), 100)
+  }
+
+  // 비밀번호 모드 변경 핸들러
+  const handlePasswordModeChange = (usePassword: boolean) => {
+    setIsPasswordMode(usePassword)
+  }
+
   if (!isOpen) return null
 
   return (
@@ -42,17 +57,15 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       
       {/* 모달 컨텐츠 */}
       <div className="relative z-10 mx-1 sm:mx-4 w-full max-w-xs sm:max-w-md">
-        {/* 닫기 버튼 */}
-        <button
-          onClick={onClose}
-          className="absolute -top-2 -right-2 sm:-top-4 sm:-right-4 z-20 rounded-full bg-gray-800 p-1.5 sm:p-2 text-white hover:bg-gray-700 transition-colors"
-        >
-          <X className="h-4 w-4 sm:h-5 sm:w-5" />
-        </button>
-        
         {/* 로그인 카드 */}
         <div className="scale-80 sm:scale-100 origin-center">
-          <LoginCard />
+          <LoginCard 
+            resetToEmailMode={resetToEmailMode} 
+            onPasswordModeChange={handlePasswordModeChange}
+            onClose={onClose}
+            onBack={handleBackClick}
+            showBackButton={isPasswordMode}
+          />
         </div>
       </div>
     </div>

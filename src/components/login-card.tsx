@@ -1,17 +1,178 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Apple, Github } from "lucide-react"
+import { Apple, Github, X, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 
-export function LoginCard() {
+interface LoginCardProps {
+  resetToEmailMode?: boolean
+  onPasswordModeChange?: (usePassword: boolean) => void
+  onClose?: () => void
+  onBack?: () => void
+  showBackButton?: boolean
+}
+
+export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onBack, showBackButton }: LoginCardProps) {
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [usePassword, setUsePassword] = useState(false)
+  const [passwordResetMode, setPasswordResetMode] = useState(false)
+  const [signupMode, setSignupMode] = useState(false)
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [confirmPasswordError, setConfirmPasswordError] = useState("")
+
+  // 이메일 정규식
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  // 비밀번호 정규식 (최소 8자, 대문자, 소문자, 숫자 각각 최소 1개)
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+
+  // resetToEmailMode prop이 true일 때 이메일 모드로 초기화
+  useEffect(() => {
+    if (resetToEmailMode) {
+      setUsePassword(false)
+      setPassword("")
+      setConfirmPassword("")
+      setPasswordResetMode(false)
+      setSignupMode(false)
+      setEmailError("")
+      setPasswordError("")
+      setConfirmPasswordError("")
+    }
+  }, [resetToEmailMode])
+
+  // usePassword 상태 변경 시 부모에게 알림
+  useEffect(() => {
+    onPasswordModeChange?.(usePassword || passwordResetMode || signupMode)
+  }, [usePassword, passwordResetMode, signupMode, onPasswordModeChange])
+
+  // 이메일 검증
+  const validateEmail = (email: string) => {
+    if (!email) {
+      setEmailError("")
+      return false
+    }
+    if (!emailRegex.test(email)) {
+      setEmailError("올바른 이메일 형식을 입력하세요")
+      return false
+    }
+    setEmailError("")
+    return true
+  }
+
+  // 비밀번호 검증
+  const validatePassword = (password: string) => {
+    if (!password) {
+      setPasswordError("")
+      return false
+    }
+    if (!passwordRegex.test(password)) {
+      setPasswordError("최소 8자, 대문자, 소문자, 숫자를 각각 포함해야 합니다")
+      return false
+    }
+    setPasswordError("")
+    return true
+  }
+
+  // 비밀번호 확인 검증
+  const validateConfirmPassword = (confirmPwd: string) => {
+    if (!confirmPwd) {
+      setConfirmPasswordError("")
+      return false
+    }
+    if (confirmPwd !== password) {
+      setConfirmPasswordError("비밀번호가 일치하지 않습니다")
+      return false
+    }
+    setConfirmPasswordError("")
+    return true
+  }
+
+  // 비밀번호 모드 전환 함수
+  const handlePasswordModeToggle = () => {
+    setUsePassword(true)
+    setSignupMode(false)
+  }
+
+  // 비밀번호 재설정 모드 전환 함수
+  const handlePasswordResetMode = () => {
+    setPasswordResetMode(true)
+    setUsePassword(false)
+    setSignupMode(false)
+  }
+
+  // 가입 모드 전환 함수
+  const handleSignupMode = () => {
+    setSignupMode(true)
+    setUsePassword(false)
+    setPasswordResetMode(false)
+  }
+
+  // 로그인 모드로 돌아가기
+  const handleBackToLogin = () => {
+    setSignupMode(false)
+    setUsePassword(false)
+    setPasswordResetMode(false)
+    setPassword("")
+    setConfirmPassword("")
+    setEmailError("")
+    setPasswordError("")
+    setConfirmPasswordError("")
+  }
+
+  // 제출 처리
+  const handleSubmit = () => {
+    if (signupMode) {
+      const isEmailValid = validateEmail(email)
+      const isPasswordValid = validatePassword(password)
+      const isConfirmPasswordValid = validateConfirmPassword(confirmPassword)
+      
+      if (isEmailValid && isPasswordValid && isConfirmPasswordValid) {
+        console.log("회원가입", { email, password })
+      }
+    } else if (passwordResetMode) {
+      const isEmailValid = validateEmail(email)
+      if (isEmailValid) {
+        console.log("재설정 링크 발송", { email })
+      }
+    } else if (usePassword) {
+      const isEmailValid = validateEmail(email)
+      if (isEmailValid && password) {
+        console.log("로그인", { email, password })
+      }
+    } else {
+      const isEmailValid = validateEmail(email)
+      if (isEmailValid) {
+        console.log("코드 발송", { email })
+      }
+    }
+  }
 
   return (
-    <div className="w-full max-w-md rounded-xl bg-[#1a1a1a] p-4 sm:p-8 text-white shadow-xl">
+    <div className="relative w-full max-w-md rounded-xl bg-[#1a1a1a] p-4 sm:p-8 text-white shadow-xl">
+      {/* 뒤로가기 버튼 (좌측상단) */}
+      {showBackButton && (
+        <button
+          onClick={onBack}
+          className="absolute top-2 left-2 sm:top-4 sm:left-4 z-20 rounded-full bg-gray-800 p-1.5 sm:p-2 text-white hover:bg-gray-700 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+        </button>
+      )}
+      
+      {/* 닫기 버튼 (우측상단) */}
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 rounded-full bg-gray-800 p-1.5 sm:p-2 text-white hover:bg-gray-700 transition-colors"
+      >
+        <X className="h-4 w-4 sm:h-5 sm:w-5" />
+      </button>
+
       <div className="mb-4 sm:mb-8 flex justify-center">
         <div className="relative h-12 w-12 sm:h-20 sm:w-20">
           <Image
@@ -24,72 +185,193 @@ export function LoginCard() {
         </div>
       </div>
 
-      <h1 className="mb-6 sm:mb-10 text-center text-xl sm:text-2xl font-bold">
-        <span className="text-[#b975ff]">pkm</span>에 오신 것을 환영합니다.
+      <h1 className={`text-center text-xl sm:text-2xl font-bold ${passwordResetMode || signupMode ? 'mb-4 sm:mb-6' : 'mb-6 sm:mb-10'}`}>
+        {passwordResetMode ? (
+          "비밀번호를 재설정하세요"
+        ) : signupMode ? (
+          "계정을 생성하세요"
+        ) : (
+          <>
+            <span className="text-[#b975ff]">pkm</span>에 오신 것을 환영합니다.
+          </>
+        )}
       </h1>
 
       <div className="mb-4 sm:mb-6">
-        <p className="mb-3 text-center text-sm font-light">시작하려면 이메일을 입력하세요.</p>
-        <div className="relative">
+        <p className="mb-3 text-center text-sm font-light">
+          {passwordResetMode 
+            ? "재설정 링크를 받을 이메일을 입력하세요."
+            : signupMode
+            ? "시작하려면 가입하세요."
+            : usePassword 
+            ? "로그인하려면 이메일과 비밀번호를 입력하세요." 
+            : "시작하려면 이메일을 입력하세요."
+          }
+        </p>
+        
+        {/* 이메일 입력 */}
+        <div className="relative mb-4">
           <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이메일</label>
           <Input
             type="email"
             placeholder="yours@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border border-[#333] bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0"
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (e.target.value) validateEmail(e.target.value)
+            }}
+            className={`border ${emailError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
           />
+          {emailError && (
+            <p className="text-red-400 text-xs mt-1 ml-3">{emailError}</p>
+          )}
         </div>
+
+        {/* 비밀번호 입력 (조건부 렌더링) */}
+        {(usePassword || signupMode) && !passwordResetMode && (
+          <div className="relative mb-4">
+            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호</label>
+            <Input
+              type="password"
+              placeholder="비밀번호를 입력하세요"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (e.target.value) validatePassword(e.target.value)
+                if (confirmPassword) validateConfirmPassword(confirmPassword)
+              }}
+              className={`border ${passwordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+            />
+            {passwordError && (
+              <p className="text-red-400 text-xs mt-1 ml-3">{passwordError}</p>
+            )}
+          </div>
+        )}
+
+        {/* 비밀번호 확인 입력 (가입 모드에서만) */}
+        {signupMode && (
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호 확인</label>
+            <Input
+              type="password"
+              placeholder="비밀번호를 다시 입력하세요"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                if (e.target.value) validateConfirmPassword(e.target.value)
+              }}
+              className={`border ${confirmPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+            />
+            {confirmPasswordError && (
+              <p className="text-red-400 text-xs mt-1 ml-3">{confirmPasswordError}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <Button
         className="w-full bg-[#b975ff] py-4 sm:py-6 text-base font-medium text-white hover:bg-[#a35ce0]"
-        onClick={() => console.log("코드 발송", email)}
+        onClick={handleSubmit}
       >
-        코드 받기
+        {passwordResetMode ? "재설정 링크 보내기" : signupMode ? "가입하기" : usePassword ? "로그인" : "코드 받기"}
       </Button>
 
-      <div className="mt-3 sm:mt-4 text-center">
-        <button className="text-sm font-light text-[#b975ff] hover:underline">비밀번호 사용</button>
-      </div>
+      {!passwordResetMode && (
+        <>
+          <div className="mt-3 sm:mt-4 text-center space-y-2">
+            {!usePassword && !signupMode ? (
+              <button 
+                className="text-sm font-light text-[#b975ff] hover:underline"
+                onClick={handlePasswordModeToggle}
+              >
+                비밀번호 사용
+              </button>
+            ) : usePassword ? (
+              <>
+                <div>
+                  <span className="text-sm font-light text-gray-400">계정이 없으신가요? </span>
+                  <button 
+                    className="text-sm font-light text-[#b975ff] hover:underline"
+                    onClick={handleSignupMode}
+                  >
+                    가입하기
+                  </button>
+                </div>
+                <div>
+                  <button 
+                    className="text-sm font-light text-[#b975ff] hover:underline"
+                    onClick={handlePasswordResetMode}
+                  >
+                    비밀번호 찾기
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
 
-      <div className="my-6 sm:my-8 flex items-center gap-4">
-        <div className="h-px flex-1 bg-[#333]"></div>
-        <span className="text-sm text-gray-400">또는</span>
-        <div className="h-px flex-1 bg-[#333]"></div>
-      </div>
+          {!signupMode && (
+            <>
+              <div className="my-6 sm:my-8 flex items-center gap-4">
+                <div className="h-px flex-1 bg-[#333]"></div>
+                <span className="text-sm text-gray-400">또는</span>
+                <div className="h-px flex-1 bg-[#333]"></div>
+              </div>
 
-      <Button className="mb-3 sm:mb-4 w-full justify-center gap-3 border border-[#333] bg-white py-4 sm:py-6 text-base font-medium text-black hover:bg-gray-100">
-        <GoogleIcon />
-        <span>Google로 계속하기</span>
-      </Button>
+              <Button className="mb-3 sm:mb-4 w-full justify-center gap-3 border border-[#333] bg-white py-4 sm:py-6 text-base font-medium text-black hover:bg-gray-100">
+                <GoogleIcon />
+                <span>Google로 계속하기</span>
+              </Button>
 
-      <div className="mb-3 sm:mb-4 grid grid-cols-4 gap-3">
-        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-white p-0 text-black hover:bg-gray-100">
-          <Apple className="h-5 w-5 sm:h-6 sm:w-6" />
-        </Button>
-        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-black p-0 text-white hover:bg-gray-900">
-          <Github className="h-5 w-5 sm:h-6 sm:w-6" />
-        </Button>
-        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#1877F2] p-0 text-white hover:bg-[#166fe5]">
-          <FacebookIcon />
-        </Button>
-        <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#5865F2] p-0 text-white hover:bg-[#4752c4]">
-          <DiscordIcon />
-        </Button>
-      </div>
+              <div className="mb-3 sm:mb-4 grid grid-cols-4 gap-3">
+                <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-white p-0 text-black hover:bg-gray-100">
+                  <Apple className="h-5 w-5 sm:h-6 sm:w-6" />
+                </Button>
+                <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-black p-0 text-white hover:bg-gray-900">
+                  <Github className="h-5 w-5 sm:h-6 sm:w-6" />
+                </Button>
+                <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#1877F2] p-0 text-white hover:bg-[#166fe5]">
+                  <FacebookIcon />
+                </Button>
+                <Button className="flex h-10 sm:h-12 w-full items-center justify-center rounded-md border border-[#333] bg-[#5865F2] p-0 text-white hover:bg-[#4752c4]">
+                  <DiscordIcon />
+                </Button>
+              </div>
+            </>
+          )}
 
-      <div className="mt-6 sm:mt-10 text-center text-xs font-light text-gray-400">
-        계속함으로써 귀하는 우리의{" "}
-        <Link href="#" className="text-[#b975ff] hover:underline">
-          서비스 약관
-        </Link>{" "}
-        및{" "}
-        <Link href="#" className="text-[#b975ff] hover:underline">
-          개인정보 보호정책
-        </Link>
-        에 동의하게 됩니다.
-      </div>
+          {signupMode && (
+            <>
+              <div className="my-6 sm:my-8 flex items-center gap-4">
+                <div className="h-px flex-1 bg-[#333]"></div>
+                <span className="text-sm text-gray-400">또는</span>
+                <div className="h-px flex-1 bg-[#333]"></div>
+              </div>
+
+              <div className="text-center">
+                <span className="text-sm font-light text-gray-400">이미 계정이 있으신가요? </span>
+                <button 
+                  className="text-sm font-light text-[#b975ff] hover:underline"
+                  onClick={handleBackToLogin}
+                >
+                  로그인
+                </button>
+              </div>
+            </>
+          )}
+
+          <div className="mt-6 sm:mt-10 text-center text-xs font-light text-gray-400">
+            계속함으로써 귀하는 우리의{" "}
+            <Link href="#" className="text-[#b975ff] hover:underline">
+              서비스 약관
+            </Link>{" "}
+            및{" "}
+            <Link href="#" className="text-[#b975ff] hover:underline">
+              개인정보 보호정책
+            </Link>
+            에 동의하게 됩니다.
+          </div>
+        </>
+      )}
     </div>
   )
 }
