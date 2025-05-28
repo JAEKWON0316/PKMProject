@@ -150,10 +150,13 @@ export async function signInWithPassword(email: string, password: string): Promi
 // 4. Google OAuth 로그인
 export async function signInWithGoogle(): Promise<AuthResult> {
   try {
+    // 배포 환경에서는 환경 변수 사용, 개발 환경에서는 현재 origin 사용
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${baseUrl}/auth/callback`
       }
     })
 
