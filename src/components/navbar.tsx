@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Menu, X, LogOut, User } from "lucide-react"
 import { useState } from "react"
@@ -12,6 +12,7 @@ import { signOut } from "@/lib/auth"
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { user, profile, isAuthenticated, loading } = useAuth();
@@ -21,8 +22,16 @@ export default function Navbar() {
 
   // 로그아웃 처리
   const handleLogout = async () => {
-    await signOut();
-    setIsMobileMenuOpen(false);
+    try {
+      await signOut();
+      setIsMobileMenuOpen(false);
+      // 로그아웃 후 메인 페이지로 리다이렉트
+      router.push('/');
+      // 페이지 새로고침으로 상태 완전 초기화
+      window.location.reload();
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+    }
   };
 
   // 표시할 사용자 이름 결정

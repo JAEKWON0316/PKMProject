@@ -78,7 +78,7 @@ export default function Hero() {
               className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 max-w-5xl w-full mx-auto"
             >
               <Link href="/save-chat" className="group">
-                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 hover:border-purple-500/50">
+                <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 hover:border-purple-500/50 hover:bg-gray-900/40">
                   <div className="p-3 sm:p-4 md:p-6">
                     <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-purple-400 transition-colors">
                       대화 저장
@@ -91,7 +91,7 @@ export default function Hero() {
               </Link>
               
               <Link href="/rag" className="group">
-                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-500/50">
+                <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-500/50 hover:bg-gray-900/40">
                   <div className="p-3 sm:p-4 md:p-6">
                     <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-blue-400 transition-colors">
                       벡터 검색 (RAG)
@@ -104,7 +104,7 @@ export default function Hero() {
               </Link>
               
               <Link href="/integrations" className="group">
-                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-500/50">
+                <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 hover:border-green-500/50 hover:bg-gray-900/40">
                   <div className="p-3 sm:p-4 md:p-6">
                     <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2 group-hover:text-green-400 transition-colors">
                       대화 찾아보기

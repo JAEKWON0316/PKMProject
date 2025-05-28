@@ -335,24 +335,156 @@ export async function signUp(email: string, password: string, fullName?: string)
   return signUpWithOtp({ email, password, fullName })
 }
 
-// 8. 비밀번호 재설정
-export async function resetPassword(email: string): Promise<AuthResult> {
+// 8. OTP 기반 비밀번호 재설정 - 1단계: 재설정 코드 발송
+export async function sendPasswordResetOtp(email: string): Promise<AuthResult> {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`
+    // 새로운 API를 통해 비밀번호 재설정 OTP 발송
+    const response = await fetch('/api/auth/send-reset-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
     })
 
-    if (error) {
+    const result = await response.json()
+
+    if (!result.success) {
       return {
         success: false,
-        message: '비밀번호 재설정 이메일 발송에 실패했습니다.',
-        error: error.message
+        message: result.message,
+        error: result.error
       }
     }
 
     return {
       success: true,
-      message: '비밀번호 재설정 링크를 이메일로 발송했습니다. 이메일을 확인해주세요.'
+      message: result.message
+    }
+  } catch (error) {
+    console.error('비밀번호 재설정 OTP 발송 오류:', error)
+    return {
+      success: false,
+      message: '네트워크 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// 9. OTP 기반 비밀번호 재설정 - 2단계: 코드 검증
+export async function verifyPasswordResetOtp(email: string, token: string): Promise<AuthResult> {
+  try {
+    // 새로운 API를 통해 OTP 검증
+    const response = await fetch('/api/auth/verify-reset-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, token })
+    })
+
+    const result = await response.json()
+
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.message,
+        error: result.error
+      }
+    }
+
+    // 임시 토큰을 세션에 저장하여 비밀번호 재설정 권한 부여
+    sessionStorage.setItem('passwordResetSession', JSON.stringify({
+      email,
+      verified: true,
+      timestamp: Date.now(),
+      resetToken: result.resetToken
+    }))
+
+    return {
+      success: true,
+      message: result.message,
+      user: result.user
+    }
+  } catch (error) {
+    console.error('비밀번호 재설정 OTP 검증 오류:', error)
+    return {
+      success: false,
+      message: '네트워크 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// 10. OTP 기반 비밀번호 재설정 - 3단계: 새 비밀번호 설정
+export async function resetPasswordWithOtp(email: string, newPassword: string): Promise<AuthResult> {
+  try {
+    // 세션에서 검증된 정보 확인
+    const resetSession = sessionStorage.getItem('passwordResetSession')
+    if (!resetSession) {
+      return {
+        success: false,
+        message: '비밀번호 재설정 권한이 없습니다. 다시 시도해주세요.'
+      }
+    }
+
+    const sessionData = JSON.parse(resetSession)
+    
+    // 세션 유효성 검증 (10분 제한)
+    const sessionAge = Date.now() - sessionData.timestamp
+    if (sessionAge > 10 * 60 * 1000) { // 10분
+      sessionStorage.removeItem('passwordResetSession')
+      return {
+        success: false,
+        message: '세션이 만료되었습니다. 다시 시도해주세요.'
+      }
+    }
+
+    // 이메일 일치 확인
+    if (sessionData.email !== email) {
+      return {
+        success: false,
+        message: '이메일이 일치하지 않습니다.'
+      }
+    }
+
+    // 검증 상태 확인
+    if (!sessionData.verified) {
+      return {
+        success: false,
+        message: '코드 인증이 완료되지 않았습니다.'
+      }
+    }
+
+    // API를 통해 비밀번호 업데이트
+    const response = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email, 
+        newPassword,
+        resetToken: sessionData.resetToken
+      })
+    })
+
+    const result = await response.json()
+
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.message,
+        error: result.error
+      }
+    }
+
+    // 성공 시 세션 정리
+    sessionStorage.removeItem('passwordResetSession')
+
+    return {
+      success: true,
+      message: '비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요.'
     }
   } catch (error) {
     console.error('비밀번호 재설정 오류:', error)
@@ -362,6 +494,11 @@ export async function resetPassword(email: string): Promise<AuthResult> {
       error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
+}
+
+// 기존 resetPassword 함수는 호환성을 위해 유지하되 OTP 방식으로 변경
+export async function resetPassword(email: string): Promise<AuthResult> {
+  return sendPasswordResetOtp(email)
 }
 
 // 9. 로그아웃

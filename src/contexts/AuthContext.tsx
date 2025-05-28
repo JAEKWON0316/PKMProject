@@ -75,7 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 인증 상태 변화 리스너 설정
     const { data: { subscription } } = onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session)
+        // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Auth state changed:', event, session)
+        }
         
         setSession(session)
         setUser(session?.user ?? null)

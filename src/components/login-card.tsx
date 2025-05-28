@@ -15,7 +15,10 @@ import {
   signUp, 
   signUpWithOtp,
   completeSignUpWithOtp,
-  resetPassword, 
+  resetPassword,
+  sendPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPasswordWithOtp,
   AuthResult 
 } from "@/lib/auth"
 import { useAuth } from "@/contexts/AuthContext"
@@ -34,16 +37,22 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
   const [fullName, setFullName] = useState("")
   const [otpCode, setOtpCode] = useState("")
   const [usePassword, setUsePassword] = useState(false)
   const [passwordResetMode, setPasswordResetMode] = useState(false)
+  const [passwordResetOtpMode, setPasswordResetOtpMode] = useState(false)
+  const [passwordResetNewPasswordMode, setPasswordResetNewPasswordMode] = useState(false)
   const [signupMode, setSignupMode] = useState(false)
   const [otpMode, setOtpMode] = useState(false)
   const [isSignupOtpMode, setIsSignupOtpMode] = useState(false)
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [confirmPasswordError, setConfirmPasswordError] = useState("")
+  const [newPasswordError, setNewPasswordError] = useState("")
+  const [confirmNewPasswordError, setConfirmNewPasswordError] = useState("")
   const [otpError, setOtpError] = useState("")
   const [loading, setLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
@@ -69,16 +78,22 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
       setUsePassword(false)
       setOtpMode(false)
       setIsSignupOtpMode(false)
+      setPasswordResetMode(false)
+      setPasswordResetOtpMode(false)
+      setPasswordResetNewPasswordMode(false)
       setPassword("")
       setConfirmPassword("")
+      setNewPassword("")
+      setConfirmNewPassword("")
       setFullName("")
       setOtpCode("")
       setOtpSentEmail("")
-      setPasswordResetMode(false)
       setSignupMode(false)
       setEmailError("")
       setPasswordError("")
       setConfirmPasswordError("")
+      setNewPasswordError("")
+      setConfirmNewPasswordError("")
       setOtpError("")
       setSuccessMessage("")
       setErrorMessage("")
@@ -87,8 +102,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
 
   // usePassword 상태 변경 시 부모에게 알림
   useEffect(() => {
-    onPasswordModeChange?.(usePassword || passwordResetMode || signupMode)
-  }, [usePassword, passwordResetMode, signupMode, onPasswordModeChange])
+    onPasswordModeChange?.(usePassword || passwordResetMode || passwordResetOtpMode || passwordResetNewPasswordMode || signupMode)
+  }, [usePassword, passwordResetMode, passwordResetOtpMode, passwordResetNewPasswordMode, signupMode, onPasswordModeChange])
 
   // 이메일 검증
   const validateEmail = (email: string) => {
@@ -118,6 +133,20 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     return true
   }
 
+  // 새 비밀번호 검증
+  const validateNewPassword = (password: string) => {
+    if (!password) {
+      setNewPasswordError("")
+      return false
+    }
+    if (!passwordRegex.test(password)) {
+      setNewPasswordError("최소 8자, 대문자, 소문자, 숫자를 각각 포함해야 합니다")
+      return false
+    }
+    setNewPasswordError("")
+    return true
+  }
+
   // 비밀번호 확인 검증
   const validateConfirmPassword = (confirmPwd: string) => {
     if (!confirmPwd) {
@@ -129,6 +158,20 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
       return false
     }
     setConfirmPasswordError("")
+    return true
+  }
+
+  // 새 비밀번호 확인 검증
+  const validateConfirmNewPassword = (confirmPwd: string) => {
+    if (!confirmPwd) {
+      setConfirmNewPasswordError("")
+      return false
+    }
+    if (confirmPwd !== newPassword) {
+      setConfirmNewPasswordError("비밀번호가 일치하지 않습니다")
+      return false
+    }
+    setConfirmNewPasswordError("")
     return true
   }
 
@@ -183,8 +226,35 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
   // 비밀번호 재설정 모드 전환 함수
   const handlePasswordResetMode = () => {
     setPasswordResetMode(true)
+    setPasswordResetOtpMode(false)
+    setPasswordResetNewPasswordMode(false)
     setUsePassword(false)
     setSignupMode(false)
+    setOtpMode(false)
+    setSuccessMessage("")
+    setErrorMessage("")
+  }
+
+  // 비밀번호 재설정 OTP 모드 전환 함수
+  const handlePasswordResetOtpMode = () => {
+    setPasswordResetOtpMode(true)
+    setPasswordResetMode(false)
+    setPasswordResetNewPasswordMode(false)
+    setUsePassword(false)
+    setSignupMode(false)
+    setOtpMode(false)
+    setSuccessMessage("")
+    setErrorMessage("")
+  }
+
+  // 비밀번호 재설정 새 비밀번호 모드 전환 함수
+  const handlePasswordResetNewPasswordMode = () => {
+    setPasswordResetNewPasswordMode(true)
+    setPasswordResetOtpMode(false)
+    setPasswordResetMode(false)
+    setUsePassword(false)
+    setSignupMode(false)
+    setOtpMode(false)
     setSuccessMessage("")
     setErrorMessage("")
   }
@@ -194,6 +264,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     setSignupMode(true)
     setUsePassword(false)
     setPasswordResetMode(false)
+    setPasswordResetOtpMode(false)
+    setPasswordResetNewPasswordMode(false)
     setSuccessMessage("")
     setErrorMessage("")
   }
@@ -203,6 +275,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     setSignupMode(false)
     setUsePassword(false)
     setPasswordResetMode(false)
+    setPasswordResetOtpMode(false)
+    setPasswordResetNewPasswordMode(false)
     setOtpMode(false)
     setIsSignupOtpMode(false)
     setSuccessMessage("")
@@ -216,19 +290,37 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     setUsePassword(false)
     setSignupMode(false)
     setPasswordResetMode(false)
+    setPasswordResetOtpMode(false)
+    setPasswordResetNewPasswordMode(false)
     setOtpCode("")
     setOtpSentEmail("")
     setSuccessMessage("")
     setErrorMessage("")
   }
 
-  // 새 코드 요청
+  // 새 코드 요청 (일반 로그인용)
   const handleRequestNewCode = async () => {
     if (loading || !otpSentEmail) return
     
     setLoading(true)
     try {
       const result = await sendOtpCode(otpSentEmail)
+      await showResult(result)
+      if (result.success) {
+        setOtpCode("") // 코드 입력 필드 초기화
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 새 재설정 코드 요청
+  const handleRequestNewResetCode = async () => {
+    if (loading || !otpSentEmail) return
+    
+    setLoading(true)
+    try {
+      const result = await sendPasswordResetOtp(otpSentEmail)
       await showResult(result)
       if (result.success) {
         setOtpCode("") // 코드 입력 필드 초기화
@@ -299,7 +391,39 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
       } else if (passwordResetMode) {
         const isEmailValid = validateEmail(email)
         if (isEmailValid) {
-          const result = await resetPassword(email)
+          const result = await sendPasswordResetOtp(email)
+          if (result.success) {
+            setOtpSentEmail(email)
+            setPasswordResetOtpMode(true)
+            setPasswordResetMode(false)
+          }
+          await showResult(result)
+        }
+      } else if (passwordResetOtpMode) {
+        const isOtpValid = validateOtpCode(otpCode)
+        if (isOtpValid && otpSentEmail) {
+          const result = await verifyPasswordResetOtp(otpSentEmail, otpCode)
+          if (result.success) {
+            setPasswordResetNewPasswordMode(true)
+            setPasswordResetOtpMode(false)
+          }
+          await showResult(result)
+        }
+      } else if (passwordResetNewPasswordMode) {
+        const isNewPasswordValid = validateNewPassword(newPassword)
+        const isConfirmNewPasswordValid = validateConfirmNewPassword(confirmNewPassword)
+        
+        if (isNewPasswordValid && isConfirmNewPasswordValid && otpSentEmail) {
+          const result = await resetPasswordWithOtp(otpSentEmail, newPassword)
+          if (result.success) {
+            // 성공 시 로그인 모드로 돌아가기
+            setPasswordResetNewPasswordMode(false)
+            setUsePassword(true)
+            setNewPassword("")
+            setConfirmNewPassword("")
+            setOtpCode("")
+            setOtpSentEmail("")
+          }
           await showResult(result)
         }
       } else if (usePassword) {
@@ -436,40 +560,72 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
           </div>
         )}
 
-        {/* OTP 코드 입력 */}
-        {otpMode && (
-          <div className="relative mb-4">
-            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">인증 코드</label>
+        {/* OTP 코드 입력 (OTP 모드 또는 비밀번호 재설정 OTP 모드에서) */}
+        {(otpMode || passwordResetOtpMode) && (
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">
+              {passwordResetOtpMode ? "재설정 코드" : "인증 코드"}
+            </label>
             <Input
               type="text"
-              placeholder="******"
+              placeholder={passwordResetOtpMode ? "이메일로 받은 6자리 재설정 코드" : "이메일로 받은 6자리 코드"}
               value={otpCode}
-              maxLength={6}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '') // 숫자만 입력
-                setOtpCode(value)
-                if (value) validateOtpCode(value)
+                setOtpCode(e.target.value)
+                if (e.target.value) validateOtpCode(e.target.value)
               }}
-              className={`border ${otpError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white text-center text-2xl tracking-widest focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              className={`border ${otpError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              maxLength={6}
             />
             {otpError && (
               <p className="text-red-400 text-xs mt-1 ml-3">{otpError}</p>
             )}
-            <div className="mt-2 text-center">
-              <button 
-                className="text-sm text-[#b975ff] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleRequestNewCode}
-                disabled={loading}
-              >
-                새 코드 받기
-              </button>
-            </div>
           </div>
         )}
 
-        {/* 비밀번호 입력 (조건부 렌더링) */}
-        {(usePassword || signupMode) && !passwordResetMode && !otpMode && (
-          <div className="relative mb-4">
+        {/* 새 비밀번호 입력 (비밀번호 재설정 새 비밀번호 모드에서) */}
+        {passwordResetNewPasswordMode && (
+          <>
+            <div className="relative">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">새 비밀번호</label>
+              <Input
+                type="password"
+                placeholder="새 비밀번호를 입력하세요"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  if (e.target.value) validateNewPassword(e.target.value)
+                  if (confirmNewPassword) validateConfirmNewPassword(confirmNewPassword)
+                }}
+                className={`border ${newPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              />
+              {newPasswordError && (
+                <p className="text-red-400 text-xs mt-1 ml-3">{newPasswordError}</p>
+              )}
+            </div>
+            
+            <div className="relative mt-6">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">새 비밀번호 확인</label>
+              <Input
+                type="password"
+                placeholder="새 비밀번호를 다시 입력하세요"
+                value={confirmNewPassword}
+                onChange={(e) => {
+                  setConfirmNewPassword(e.target.value)
+                  if (e.target.value) validateConfirmNewPassword(e.target.value)
+                }}
+                className={`border ${confirmNewPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              />
+              {confirmNewPasswordError && (
+                <p className="text-red-400 text-xs mt-1 ml-3">{confirmNewPasswordError}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* 비밀번호 입력 (비밀번호 모드에서) */}
+        {usePassword && !otpMode && !passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && (
+          <div className="relative">
             <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호</label>
             <Input
               type="password"
@@ -520,11 +676,16 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
             <span>처리 중...</span>
           </div>
         ) : (
-          otpMode ? "코드 확인" : passwordResetMode ? "재설정 링크 보내기" : signupMode ? "가입하기" : usePassword ? "로그인" : "코드 받기"
+          passwordResetNewPasswordMode ? "비밀번호 재설정" :
+          passwordResetOtpMode ? "코드 확인" :
+          passwordResetMode ? "재설정 코드 보내기" :
+          otpMode ? "코드 확인" :
+          signupMode ? "가입하기" :
+          usePassword ? "로그인" : "코드 받기"
         )}
       </Button>
 
-      {!passwordResetMode && !otpMode && (
+      {!passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && !otpMode && (
         <>
           <div className="mt-3 sm:mt-4 text-center space-y-2">
             {!usePassword && !signupMode ? (
@@ -625,7 +786,19 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
         </>
       )}
 
-      {(otpMode) && (
+      {/* 비밀번호 재설정 모드들에서 뒤로 가기 버튼 */}
+      {(passwordResetMode || passwordResetOtpMode || passwordResetNewPasswordMode) && (
+        <div className="mt-3 sm:mt-4 text-center">
+          <button 
+            className="text-sm font-light text-[#b975ff] hover:underline"
+            onClick={handleBackToLogin}
+          >
+            ← 로그인으로 돌아가기
+          </button>
+        </div>
+      )}
+
+      {(otpMode && !passwordResetOtpMode) && (
         <div className="mt-3 sm:mt-4 text-center">
           <button 
             className="text-sm font-light text-[#b975ff] hover:underline"

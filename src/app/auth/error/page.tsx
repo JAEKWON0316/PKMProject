@@ -1,10 +1,11 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { AlertCircle } from 'lucide-react'
 
-export default function AuthError() {
+function AuthErrorContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -69,5 +70,26 @@ export default function AuthError() {
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function AuthError() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuthErrorContent />
+    </Suspense>
   )
 } 
