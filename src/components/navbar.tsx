@@ -3,18 +3,35 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Menu, X } from "lucide-react"
+import { Menu, X, LogOut, User } from "lucide-react"
 import { useState } from "react"
 import Image from "next/image"
 import { LoginModal } from "./login-modal"
+import { useAuth } from "@/contexts/AuthContext"
+import { signOut } from "@/lib/auth"
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const { user, profile, isAuthenticated, loading } = useAuth();
 
   // 메인페이지 여부 확인
   const isMainPage = pathname === '/';
+
+  // 로그아웃 처리
+  const handleLogout = async () => {
+    await signOut();
+    setIsMobileMenuOpen(false);
+  };
+
+  // 표시할 사용자 이름 결정
+  const getDisplayName = () => {
+    if (profile?.full_name) {
+      return profile.full_name;
+    }
+    return user?.email?.split('@')[0] || 'User';
+  };
 
   return (
     <>
@@ -48,23 +65,51 @@ export default function Navbar() {
 
             {/* 데스크탑: 우측 버튼들 */}
             <div className="flex items-center space-x-3 sm:space-x-5">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-gray-300 hover:text-white text-base"
-                onClick={() => setIsLoginModalOpen(true)}
-              >
-                로그인
-              </Button>
-              <Button 
-                size="sm" 
-                className="ripple-button text-white text-base"
-                onClick={() => setIsLoginModalOpen(true)}
-              >
-                <span className="font-medium relative z-10">
-                  Get Started
-                </span>
-              </Button>
+              {!loading && (
+                <>
+                  {isAuthenticated ? (
+                    // 로그인된 상태
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2 text-gray-300">
+                        <User className="h-4 w-4" />
+                        <span className="text-sm">
+                          {getDisplayName()}
+                        </span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-gray-300 hover:text-white text-base"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        로그아웃
+                      </Button>
+                    </div>
+                  ) : (
+                    // 로그인되지 않은 상태
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-gray-300 hover:text-white text-base"
+                        onClick={() => setIsLoginModalOpen(true)}
+                      >
+                        로그인
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="ripple-button text-white text-base"
+                        onClick={() => setIsLoginModalOpen(true)}
+                      >
+                        <span className="font-medium relative z-10">
+                          Get Started
+                        </span>
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -89,15 +134,17 @@ export default function Navbar() {
 
           {/* 모바일: 우측 버튼들 */}
           <div className="flex items-center space-x-2">
-            <Button 
-              size="sm" 
-              className="ripple-button text-white text-sm px-3 py-2 opacity-90 hover:opacity-100 transition-opacity duration-300 shadow-lg relative z-10"
-              onClick={() => setIsLoginModalOpen(true)}
-            >
-              <span className="font-medium relative z-10">
-                무료로 시작하기
-              </span>
-            </Button>
+            {!loading && !isAuthenticated && (
+              <Button 
+                size="sm" 
+                className="ripple-button text-white text-sm px-3 py-2 opacity-90 hover:opacity-100 transition-opacity duration-300 shadow-lg relative z-10"
+                onClick={() => setIsLoginModalOpen(true)}
+              >
+                <span className="font-medium relative z-10">
+                  무료로 시작하기
+                </span>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -138,19 +185,43 @@ export default function Navbar() {
               isActive={pathname === '/dashboard'}
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <div className="pt-2 border-t border-gray-800">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="w-full text-gray-300 hover:text-white justify-start"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setIsLoginModalOpen(true);
-                }}
-              >
-                로그인
-              </Button>
-            </div>
+            {!loading && (
+              <div className="pt-2 border-t border-gray-800">
+                {isAuthenticated ? (
+                  // 모바일: 로그인된 상태
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 py-2 px-3 text-gray-300">
+                      <User className="h-4 w-4" />
+                      <span className="text-sm">
+                        {getDisplayName()}
+                      </span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-gray-300 hover:text-white justify-start"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      로그아웃
+                    </Button>
+                  </div>
+                ) : (
+                  // 모바일: 로그인되지 않은 상태
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full text-gray-300 hover:text-white justify-start"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsLoginModalOpen(true);
+                    }}
+                  >
+                    로그인
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

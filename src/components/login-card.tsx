@@ -2,10 +2,23 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Apple, Github, X, ArrowLeft } from "lucide-react"
+import { Apple, Github, X, ArrowLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { 
+  sendOtpCode,
+  verifyOtpCode,
+  signInWithPassword, 
+  signInWithGoogle, 
+  signUp, 
+  signUpWithOtp,
+  completeSignUpWithOtp,
+  resetPassword, 
+  AuthResult 
+} from "@/lib/auth"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface LoginCardProps {
   resetToEmailMode?: boolean
@@ -16,15 +29,26 @@ interface LoginCardProps {
 }
 
 export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onBack, showBackButton }: LoginCardProps) {
+  const router = useRouter()
+  const { isAuthenticated } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [fullName, setFullName] = useState("")
+  const [otpCode, setOtpCode] = useState("")
   const [usePassword, setUsePassword] = useState(false)
   const [passwordResetMode, setPasswordResetMode] = useState(false)
   const [signupMode, setSignupMode] = useState(false)
+  const [otpMode, setOtpMode] = useState(false)
+  const [isSignupOtpMode, setIsSignupOtpMode] = useState(false)
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [confirmPasswordError, setConfirmPasswordError] = useState("")
+  const [otpError, setOtpError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
+  const [otpSentEmail, setOtpSentEmail] = useState("")
 
   // 이메일 정규식
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -32,17 +56,32 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
   // 비밀번호 정규식 (최소 8자, 대문자, 소문자, 숫자 각각 최소 1개)
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
+  // 인증 성공 시 리다이렉트
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/')
+    }
+  }, [isAuthenticated, router])
+
   // resetToEmailMode prop이 true일 때 이메일 모드로 초기화
   useEffect(() => {
     if (resetToEmailMode) {
       setUsePassword(false)
+      setOtpMode(false)
+      setIsSignupOtpMode(false)
       setPassword("")
       setConfirmPassword("")
+      setFullName("")
+      setOtpCode("")
+      setOtpSentEmail("")
       setPasswordResetMode(false)
       setSignupMode(false)
       setEmailError("")
       setPasswordError("")
       setConfirmPasswordError("")
+      setOtpError("")
+      setSuccessMessage("")
+      setErrorMessage("")
     }
   }, [resetToEmailMode])
 
@@ -93,10 +132,52 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     return true
   }
 
+  // OTP 코드 검증
+  const validateOtpCode = (code: string) => {
+    if (!code) {
+      setOtpError("")
+      return false
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setOtpError("6자리 숫자를 입력해주세요")
+      return false
+    }
+    setOtpError("")
+    return true
+  }
+
+  // 메시지 표시 헬퍼
+  const showResult = async (result: AuthResult) => {
+    if (result.success) {
+      // 로그인 성공 시 리다이렉트 처리
+      if (result.user && (otpMode || usePassword)) {
+        // 로딩 상태 유지하면서 완료 메시지 표시
+        setSuccessMessage("인증 완료! 이동 중...")
+        setErrorMessage("")
+        
+        // 짧은 딜레이 후 폼 닫고 리다이렉트
+        setTimeout(() => {
+          onClose?.()
+          router.push('/')
+        }, 500)
+        return
+      }
+      
+      // 일반적인 성공 메시지 (코드 발송 등)
+      setSuccessMessage(result.message)
+      setErrorMessage("")
+    } else {
+      setErrorMessage(result.message)
+      setSuccessMessage("")
+    }
+  }
+
   // 비밀번호 모드 전환 함수
   const handlePasswordModeToggle = () => {
     setUsePassword(true)
     setSignupMode(false)
+    setSuccessMessage("")
+    setErrorMessage("")
   }
 
   // 비밀번호 재설정 모드 전환 함수
@@ -104,6 +185,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     setPasswordResetMode(true)
     setUsePassword(false)
     setSignupMode(false)
+    setSuccessMessage("")
+    setErrorMessage("")
   }
 
   // 가입 모드 전환 함수
@@ -111,6 +194,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     setSignupMode(true)
     setUsePassword(false)
     setPasswordResetMode(false)
+    setSuccessMessage("")
+    setErrorMessage("")
   }
 
   // 로그인 모드로 돌아가기
@@ -118,38 +203,130 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     setSignupMode(false)
     setUsePassword(false)
     setPasswordResetMode(false)
-    setPassword("")
-    setConfirmPassword("")
-    setEmailError("")
-    setPasswordError("")
-    setConfirmPasswordError("")
+    setOtpMode(false)
+    setIsSignupOtpMode(false)
+    setSuccessMessage("")
+    setErrorMessage("")
+  }
+
+  // OTP 모드로 전환
+  const handleOtpMode = () => {
+    setOtpMode(false)
+    setIsSignupOtpMode(false)
+    setUsePassword(false)
+    setSignupMode(false)
+    setPasswordResetMode(false)
+    setOtpCode("")
+    setOtpSentEmail("")
+    setSuccessMessage("")
+    setErrorMessage("")
+  }
+
+  // 새 코드 요청
+  const handleRequestNewCode = async () => {
+    if (loading || !otpSentEmail) return
+    
+    setLoading(true)
+    try {
+      const result = await sendOtpCode(otpSentEmail)
+      await showResult(result)
+      if (result.success) {
+        setOtpCode("") // 코드 입력 필드 초기화
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Google 로그인 처리
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setSuccessMessage("")
+    setErrorMessage("")
+    
+    try {
+      const result = await signInWithGoogle()
+      await showResult(result)
+    } catch (error) {
+      setErrorMessage("Google 로그인 중 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   // 제출 처리
-  const handleSubmit = () => {
-    if (signupMode) {
-      const isEmailValid = validateEmail(email)
-      const isPasswordValid = validatePassword(password)
-      const isConfirmPasswordValid = validateConfirmPassword(confirmPassword)
-      
-      if (isEmailValid && isPasswordValid && isConfirmPasswordValid) {
-        console.log("회원가입", { email, password })
+  const handleSubmit = async () => {
+    if (loading) return
+
+    setLoading(true)
+    setSuccessMessage("")
+    setErrorMessage("")
+
+    try {
+      if (otpMode) {
+        // OTP 코드 검증 모드
+        const isOtpValid = validateOtpCode(otpCode)
+        if (isOtpValid && otpSentEmail) {
+          let result: AuthResult
+          
+          if (isSignupOtpMode) {
+            // 회원가입 OTP 검증
+            result = await completeSignUpWithOtp(otpSentEmail, otpCode)
+          } else {
+            // 일반 로그인 OTP 검증
+            result = await verifyOtpCode(otpSentEmail, otpCode)
+          }
+          
+          await showResult(result)
+          // 로그인 성공 시 로딩 상태 유지 (showResult에서 처리)
+          if (result.success && result.user) return
+        }
+      } else if (signupMode) {
+        const isEmailValid = validateEmail(email)
+        const isPasswordValid = validatePassword(password)
+        const isConfirmPasswordValid = validateConfirmPassword(confirmPassword)
+        
+        if (isEmailValid && isPasswordValid && isConfirmPasswordValid) {
+          // 새로운 OTP 기반 회원가입 사용
+          const result = await signUpWithOtp({ email, password, fullName })
+          if (result.success) {
+            setOtpSentEmail(email)
+            setOtpMode(true)
+            setIsSignupOtpMode(true) // 회원가입 OTP 모드로 설정
+          }
+          await showResult(result)
+        }
+      } else if (passwordResetMode) {
+        const isEmailValid = validateEmail(email)
+        if (isEmailValid) {
+          const result = await resetPassword(email)
+          await showResult(result)
+        }
+      } else if (usePassword) {
+        const isEmailValid = validateEmail(email)
+        if (isEmailValid && password) {
+          const result = await signInWithPassword(email, password)
+          await showResult(result)
+          // 로그인 성공 시 로딩 상태 유지 (showResult에서 처리)
+          if (result.success && result.user) return
+        }
+      } else {
+        // OTP 코드 전송 모드 (기본)
+        const isEmailValid = validateEmail(email)
+        if (isEmailValid) {
+          const result = await sendOtpCode(email)
+          if (result.success) {
+            setOtpSentEmail(email)
+            // 모든 사용자가 OTP 모드로 진입
+            setOtpMode(true)
+          }
+          await showResult(result)
+        }
       }
-    } else if (passwordResetMode) {
-      const isEmailValid = validateEmail(email)
-      if (isEmailValid) {
-        console.log("재설정 링크 발송", { email })
-      }
-    } else if (usePassword) {
-      const isEmailValid = validateEmail(email)
-      if (isEmailValid && password) {
-        console.log("로그인", { email, password })
-      }
-    } else {
-      const isEmailValid = validateEmail(email)
-      if (isEmailValid) {
-        console.log("코드 발송", { email })
-      }
+    } catch (error) {
+      setErrorMessage("예상치 못한 오류가 발생했습니다.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -181,15 +358,18 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
             width={80}
             height={80}
             className="h-full w-full object-contain"
+            priority
           />
         </div>
       </div>
 
-      <h1 className={`text-center text-xl sm:text-2xl font-bold ${passwordResetMode || signupMode ? 'mb-4 sm:mb-6' : 'mb-6 sm:mb-10'}`}>
+      <h1 className={`text-center text-xl sm:text-2xl font-bold ${passwordResetMode || signupMode || otpMode ? 'mb-4 sm:mb-6' : 'mb-6 sm:mb-10'}`}>
         {passwordResetMode ? (
           "비밀번호를 재설정하세요"
         ) : signupMode ? (
           "계정을 생성하세요"
+        ) : otpMode ? (
+          "인증 코드를 입력하세요"
         ) : (
           <>
             <span className="text-[#b975ff]">pkm</span>에 오신 것을 환영합니다.
@@ -197,38 +377,98 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
         )}
       </h1>
 
+      {/* 성공/에러 메시지 */}
+      {(successMessage || errorMessage) && (
+        <div className={`mb-4 p-3 rounded-md text-sm ${
+          successMessage 
+            ? 'bg-green-900/20 text-green-400 border border-green-900/40' 
+            : 'bg-red-900/20 text-red-400 border border-red-900/40'
+        }`}>
+          {successMessage || errorMessage}
+        </div>
+      )}
+
       <div className="mb-4 sm:mb-6">
         <p className="mb-3 text-center text-sm font-light">
           {passwordResetMode 
             ? "재설정 링크를 받을 이메일을 입력하세요."
             : signupMode
             ? "시작하려면 가입하세요."
+            : otpMode
+            ? `${otpSentEmail}로 발송된 6자리 인증 코드를 입력하세요.`
             : usePassword 
             ? "로그인하려면 이메일과 비밀번호를 입력하세요." 
             : "시작하려면 이메일을 입력하세요."
           }
         </p>
         
+        {/* 이름 입력 (회원가입 모드에서만) */}
+        {signupMode && (
+          <div className="relative mb-4">
+            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이름 (선택사항)</label>
+            <Input
+              type="text"
+              placeholder="홍길동"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="border border-[#333] bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </div>
+        )}
+        
         {/* 이메일 입력 */}
-        <div className="relative mb-4">
-          <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이메일</label>
-          <Input
-            type="email"
-            placeholder="yours@example.com"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              if (e.target.value) validateEmail(e.target.value)
-            }}
-            className={`border ${emailError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-          />
-          {emailError && (
-            <p className="text-red-400 text-xs mt-1 ml-3">{emailError}</p>
-          )}
-        </div>
+        {!otpMode && (
+          <div className="relative mb-4">
+            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이메일</label>
+            <Input
+              type="email"
+              placeholder="yours@example.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (e.target.value) validateEmail(e.target.value)
+              }}
+              className={`border ${emailError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+            />
+            {emailError && (
+              <p className="text-red-400 text-xs mt-1 ml-3">{emailError}</p>
+            )}
+          </div>
+        )}
+
+        {/* OTP 코드 입력 */}
+        {otpMode && (
+          <div className="relative mb-4">
+            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">인증 코드</label>
+            <Input
+              type="text"
+              placeholder="******"
+              value={otpCode}
+              maxLength={6}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '') // 숫자만 입력
+                setOtpCode(value)
+                if (value) validateOtpCode(value)
+              }}
+              className={`border ${otpError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white text-center text-2xl tracking-widest focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+            />
+            {otpError && (
+              <p className="text-red-400 text-xs mt-1 ml-3">{otpError}</p>
+            )}
+            <div className="mt-2 text-center">
+              <button 
+                className="text-sm text-[#b975ff] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleRequestNewCode}
+                disabled={loading}
+              >
+                새 코드 받기
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 비밀번호 입력 (조건부 렌더링) */}
-        {(usePassword || signupMode) && !passwordResetMode && (
+        {(usePassword || signupMode) && !passwordResetMode && !otpMode && (
           <div className="relative mb-4">
             <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호</label>
             <Input
@@ -249,7 +489,7 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
         )}
 
         {/* 비밀번호 확인 입력 (가입 모드에서만) */}
-        {signupMode && (
+        {signupMode && !otpMode && (
           <div className="relative">
             <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호 확인</label>
             <Input
@@ -270,13 +510,21 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
       </div>
 
       <Button
-        className="w-full bg-[#b975ff] py-4 sm:py-6 text-base font-medium text-white hover:bg-[#a35ce0]"
+        className="w-full bg-[#b975ff] py-4 sm:py-6 text-base font-medium text-white hover:bg-[#a35ce0] disabled:opacity-50 disabled:cursor-not-allowed"
         onClick={handleSubmit}
+        disabled={loading}
       >
-        {passwordResetMode ? "재설정 링크 보내기" : signupMode ? "가입하기" : usePassword ? "로그인" : "코드 받기"}
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>처리 중...</span>
+          </div>
+        ) : (
+          otpMode ? "코드 확인" : passwordResetMode ? "재설정 링크 보내기" : signupMode ? "가입하기" : usePassword ? "로그인" : "코드 받기"
+        )}
       </Button>
 
-      {!passwordResetMode && (
+      {!passwordResetMode && !otpMode && (
         <>
           <div className="mt-3 sm:mt-4 text-center space-y-2">
             {!usePassword && !signupMode ? (
@@ -317,7 +565,11 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
                 <div className="h-px flex-1 bg-[#333]"></div>
               </div>
 
-              <Button className="mb-3 sm:mb-4 w-full justify-center gap-3 border border-[#333] bg-white py-4 sm:py-6 text-base font-medium text-black hover:bg-gray-100">
+              <Button 
+                className="mb-3 sm:mb-4 w-full justify-center gap-3 border border-[#333] bg-white py-4 sm:py-6 text-base font-medium text-black hover:bg-gray-100 disabled:opacity-50"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+              >
                 <GoogleIcon />
                 <span>Google로 계속하기</span>
               </Button>
@@ -336,7 +588,7 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
                   <DiscordIcon />
                 </Button>
               </div>
-            </>
+            </> 
           )}
 
           {signupMode && (
@@ -371,6 +623,17 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
             에 동의하게 됩니다.
           </div>
         </>
+      )}
+
+      {(otpMode) && (
+        <div className="mt-3 sm:mt-4 text-center">
+          <button 
+            className="text-sm font-light text-[#b975ff] hover:underline"
+            onClick={handleBackToLogin}
+          >
+            ← 다른 방법으로 로그인
+          </button>
+        </div>
       )}
     </div>
   )
