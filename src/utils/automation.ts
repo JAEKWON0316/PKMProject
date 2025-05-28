@@ -22,7 +22,6 @@ const existsAsync = promisify(fs.exists);
 // 기본 저장 경로 설정 (Obsidian Vault 경로)
 const DEFAULT_VAULT_PATH = "C:/Users/user/Documents/Obsidian Vault";
 const CHATGPT_FOLDER = 'ChatGPT';
-const CONVERSATIONS_FOLDER = 'conversations';
 
 /**
  * MCP가 사용 가능한지 확인합니다.
@@ -46,71 +45,6 @@ async function ensureDirectoryExists(dirPath: string): Promise<void> {
 }
 
 /**
- * URL이 이미 저장된 JSON 파일이 있는지 확인합니다.
- */
-async function checkJsonFileExists(url: string): Promise<boolean> {
-  try {
-    // conversations 폴더 경로
-    const projectConversationPath = path.join(process.cwd(), CONVERSATIONS_FOLDER);
-    
-    // 폴더가 없으면 false 반환
-    if (!fs.existsSync(projectConversationPath)) {
-      return false;
-    }
-    
-    // URL 정규화 (쿼리 파라미터 등 제거)
-    const parsedUrl = new URL(url);
-    const normalizedUrl = parsedUrl.origin + parsedUrl.pathname;
-    const shareId = parsedUrl.pathname.split('/').pop() || '';
-    
-    // 모든 JSON 파일 목록 가져오기
-    const files = fs.readdirSync(projectConversationPath).filter(file => file.endsWith('.json'));
-    
-    // 각 파일을 확인하여 URL이 일치하는지 검사
-    for (const file of files) {
-      const filePath = path.join(projectConversationPath, file);
-      const content = await readFileAsync(filePath, 'utf8');
-      const data = JSON.parse(content);
-      
-      if (data.url) {
-        // 완전히 일치하는 경우
-        if (data.url === url) {
-          console.log(`완전히 일치하는 URL 발견: ${file}`);
-          return true;
-        }
-        
-        // 경로의 마지막 부분 (share ID) 비교
-        try {
-          const existingParsedUrl = new URL(data.url);
-          const existingShareId = existingParsedUrl.pathname.split('/').pop() || '';
-          
-          if (shareId && existingShareId && shareId === existingShareId) {
-            console.log(`공유 ID가 일치하는 URL 발견: ${file}`);
-            return true;
-          }
-          
-          // 정규화된 URL로 비교
-          const existingNormalizedUrl = existingParsedUrl.origin + existingParsedUrl.pathname;
-          if (normalizedUrl === existingNormalizedUrl) {
-            console.log(`정규화된 URL이 일치하는 파일 발견: ${file}`);
-            return true;
-          }
-        } catch (parseError) {
-          // URL 파싱 오류, 계속 진행
-          console.error('기존 URL 파싱 오류:', parseError);
-        }
-      }
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('JSON 파일 중복 확인 중 오류:', error);
-    // 오류 발생 시 안전하게 중복이 아닌 것으로 처리
-    return false;
-  }
-}
-
-/**
  * 로컬 파일 시스템에 대화를 저장합니다.
  */
 async function saveToFileSystem(
@@ -127,13 +61,11 @@ async function saveToFileSystem(
   skipJsonSave: boolean = false
 ) {
   try {
-    // Obsidian Vault 경로와 프로젝트 폴더 경로
+    // Obsidian Vault 경로
     const obsidianFolderPath = path.join(DEFAULT_VAULT_PATH, CHATGPT_FOLDER);
-    const projectConversationPath = path.join(process.cwd(), CONVERSATIONS_FOLDER);
     
     // 필요한 폴더 생성
     await ensureDirectoryExists(obsidianFolderPath);
-    await ensureDirectoryExists(projectConversationPath);
     
     // 마크다운 파일 저장 (Obsidian Vault에)
     const markdownFilePath = path.join(obsidianFolderPath, fileName);
@@ -146,71 +78,11 @@ async function saveToFileSystem(
     await writeFileAsync(textFilePath, rawText, 'utf8');
     console.log(`원본 텍스트 파일 저장 완료: ${textFilePath}`);
     
-    // JSON 파일 저장 여부 확인 (중복 URL이면 저장하지 않음)
-    if (skipJsonSave) {
-      console.log('중복 URL이므로 JSON 파일 저장을 건너뜁니다.');
-      return { 
-        success: true, 
-        files: {
-          markdown: markdownFilePath, 
-          text: textFilePath
-        },
-        duplicate: true
-      };
-    }
-    
-    // URL 중복 체크 (Supabase 및 로컬 JSON 파일)
-    const { exists: dbExists } = await checkUrlExists(url);
-    const jsonExists = await checkJsonFileExists(url);
-    
-    if (dbExists || jsonExists) {
-      console.log('이미 저장된 URL이므로 JSON 파일 저장을 건너뜁니다.');
-      return { 
-        success: true, 
-        files: {
-          markdown: markdownFilePath, 
-          text: textFilePath
-        },
-        duplicate: true
-      };
-    }
-    
-    // JSON 형식으로 대화 저장 (PMKProject/conversations에)
-    const jsonFileName = `${conversation.title.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-')}-${Date.now()}.json`;
-    const jsonFilePath = path.join(projectConversationPath, jsonFileName);
-    
-    // 메타데이터에 model 필드 추가 또는 수정
-    const metadataWithModel = {
-      ...(conversation.metadata || {}),
-      model: conversation.metadata?.model || 'gpt-4.1-nano',
-      savedAt: new Date().toISOString()
-    };
-    
-    await writeFileAsync(
-      jsonFilePath,
-      JSON.stringify(
-        {
-          title: conversation.title,
-          url,
-          summary: summaryResult.summary,
-          keywords: summaryResult.keywords,
-          messages: conversation.messages,
-          metadata: metadataWithModel,
-          createdAt: new Date().toISOString()
-        },
-        null,
-        2
-      ),
-      'utf8'
-    );
-    console.log(`JSON 파일 저장 완료: ${jsonFilePath}`);
-    
     return { 
       success: true, 
       files: {
         markdown: markdownFilePath, 
-        text: textFilePath, 
-        json: jsonFilePath
+        text: textFilePath
       }
     };
   } catch (error) {
@@ -240,10 +112,7 @@ export async function saveToObsidian(
       // Supabase에서 중복 체크
       const { exists, session } = await checkUrlExists(url);
       
-      // 로컬 JSON 파일에서 중복 체크
-      const jsonExists = await checkJsonFileExists(url);
-      
-      if (exists || jsonExists) {
+      if (exists) {
         console.log(`URL이 이미 존재합니다: ${url}`);
         return { 
           success: true, 
@@ -389,7 +258,7 @@ model: gpt-4.1-nano
       fileName, 
       method: 'filesystem',
       files: fileSystemResult.files,
-      duplicate: fileSystemResult.duplicate
+      duplicate: false
     };
   } catch (error) {
     console.error('Obsidian 저장 중 오류:', error);

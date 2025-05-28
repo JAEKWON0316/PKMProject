@@ -70,6 +70,7 @@ export interface ChatSession {
   metadata?: Record<string, any>;
   created_at?: string;
   embedding?: number[];
+  user_id?: string | null;
 }
 
 export interface RagSource {

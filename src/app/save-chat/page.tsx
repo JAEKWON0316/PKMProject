@@ -7,6 +7,8 @@ import SaveToObsidianButton from '@/components/SaveToObsidianButton'
 import { FloatingPaper } from '@/components/floating-paper'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { useAuth } from '@/contexts/AuthContext'
+import { getSupabaseClient } from '@/lib/supabase'
 
 export default function SaveChat() {
   const [url, setUrl] = useState('')
@@ -14,11 +16,7 @@ export default function SaveChat() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [result, setResult] = useState<any>(null)
-  const [saveOptions] = useState({
-    saveToSupabase: true,
-    saveToObsidian: false,
-    saveAsJson: false
-  })
+  const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,17 +27,34 @@ export default function SaveChat() {
 
     try {
       console.log(`Submitting URL: ${url}`)
-      console.log('Save options:', saveOptions)
       
-      const response = await fetch('/api/conversations', {
+      // 인증 토큰 가져오기
+      let authToken = null;
+      if (user) {
+        try {
+          const supabase = getSupabaseClient();
+          const { data: { session } } = await supabase.auth.getSession();
+          authToken = session?.access_token;
+          console.log('인증 토큰 획득:', authToken ? '성공' : '실패');
+        } catch (authError) {
+          console.log('인증 토큰 획득 실패:', authError);
+        }
+      }
+      
+      // 헤더 설정
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // 인증 토큰이 있으면 헤더에 추가
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
+      const response = await fetch('/api/rag/conversations', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          url,
-          options: saveOptions 
-        }),
+        headers,
+        body: JSON.stringify({ url }),
       })
 
       const data = await response.json()
@@ -55,13 +70,13 @@ export default function SaveChat() {
       if (data.duplicate) {
         // 중복 URL인 경우 성공 페이지로 리다이렉트
         console.log('중복 URL 감지, 성공 페이지로 리다이렉트:', data);
-        window.location.href = `/success?id=${data.id || ''}&duplicate=true`;
+        window.location.href = `/success?id=${data.data?.id || ''}&duplicate=true`;
       } else {
         setResult(data)
         
         // 성공 페이지로 리다이렉트
         console.log('저장 성공, 성공 페이지로 리다이렉트:', data);
-        window.location.href = `/success?id=${data.id || ''}`;
+        window.location.href = `/success?id=${data.data?.id || ''}`;
       }
       
       setUrl('')

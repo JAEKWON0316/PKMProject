@@ -3,6 +3,7 @@ import { parseChatGPTLink } from '@/lib/utils/chatgpt';
 import { summarizeConversation, summarizeLongConversation } from '@/lib/utils/openai';
 import { insertChatSession, processAndInsertChunks, checkUrlExists } from '@/utils/supabaseHandler';
 import { saveToObsidian, commitToGitHub } from '@/utils/automation';
+import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,6 +19,43 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(request: Request): Promise<Response> {
   try {
     console.log('=== RAG: 대화 처리 시작 ===');
+    
+    // 현재 로그인한 사용자 정보 가져오기
+    let currentUserId: string | null = null;
+    try {
+      // 요청 헤더에서 Authorization 토큰 가져오기
+      const authHeader = request.headers.get('authorization');
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7); // 'Bearer ' 제거
+        
+        // 토큰으로 Supabase 클라이언트 생성
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        
+        // 토큰으로 사용자 정보 가져오기
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error) {
+          console.log('토큰 검증 실패:', error.message);
+          currentUserId = null;
+        } else if (user) {
+          currentUserId = user.id;
+          console.log(`인증된 사용자 ID: ${currentUserId}`);
+        } else {
+          console.log('토큰은 유효하지만 사용자 정보가 없음');
+          currentUserId = null;
+        }
+      } else {
+        console.log('Authorization 헤더가 없음 (비로그인 사용자)');
+        currentUserId = null;
+      }
+    } catch (authError) {
+      console.log('사용자 인증 정보 가져오기 실패 (비로그인 사용자로 처리):', authError);
+      currentUserId = null;
+    }
     
     const body = await request.json().catch(e => {
       console.error('요청 본문 파싱 실패:', e);
@@ -161,7 +199,8 @@ export async function POST(request: Request): Promise<Response> {
           keywords: summaryResult.keywords || [],
           createdAt: new Date().toISOString()
         },
-        skipDuplicateCheck: true // 이미 위에서 중복 체크를 했으므로 건너뜀
+        skipDuplicateCheck: true, // 이미 위에서 중복 체크를 했으므로 건너뜀
+        userId: currentUserId
       });
       
       console.log(`Supabase 세션 저장 완료: ${sessionData.id}`);

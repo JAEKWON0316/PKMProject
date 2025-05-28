@@ -34,7 +34,7 @@ async function crawlAndSave(id: string, url: string) {
     const result = await saveConversation(url, {
       saveToSupabase: true,
       saveToObsidian: true,
-      saveAsJson: true
+     
     });
     
     if (!result.success) {

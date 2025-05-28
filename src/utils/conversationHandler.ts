@@ -14,7 +14,6 @@ const isVercel = process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_VERCEL_EN
 interface ConversationOptions {
   saveToSupabase: boolean;
   saveToObsidian: boolean;
-  saveAsJson: boolean;
   skipDuplicateCheck?: boolean;
 }
 
@@ -26,7 +25,6 @@ interface SaveResult {
   summary?: string;
   keywords?: string[];
   obsidian?: any;
-  jsonBackup?: string;
   error?: string;
   savedToObsidian?: boolean;
 }
@@ -38,8 +36,7 @@ export async function saveConversation(
   url: string, 
   options: ConversationOptions = { 
     saveToSupabase: true, 
-    saveToObsidian: true, 
-    saveAsJson: true 
+    saveToObsidian: true
   }
 ): Promise<SaveResult> {
   try {
@@ -93,8 +90,7 @@ export async function saveConversation(
 
     let saveResults = {
       supabase: null as any,
-      obsidian: null as any,
-      json: undefined as string | undefined
+      obsidian: null as any
     };
 
     // Supabase에 저장 (벡터 검색 DB)
@@ -135,20 +131,6 @@ export async function saveConversation(
       console.log('배포 환경에서는 Obsidian 저장이 비활성화되었습니다.');
     }
 
-    // JSON 파일로 백업 (배포 환경에서는 비활성화)
-    if (options.saveAsJson && !isVercelEnv()) {
-      console.log('JSON 파일로 백업 중...');
-      saveResults.json = await saveAsJsonFile(
-        conversation.title,
-        conversation.messages,
-        rawText,
-        url,
-        summaryResult
-      );
-    } else if (options.saveAsJson && isVercelEnv()) {
-      console.log('배포 환경에서는 JSON 백업이 비활성화되었습니다.');
-    }
-
     return {
       success: true,
       id: saveResults.supabase?.id,
@@ -156,7 +138,6 @@ export async function saveConversation(
       summary: summaryResult.summary,
       keywords: summaryResult.keywords,
       obsidian: saveResults.obsidian,
-      jsonBackup: saveResults.json,
       duplicate: false
     };
   } catch (error) {
@@ -165,55 +146,6 @@ export async function saveConversation(
       success: false,
       error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
     };
-  }
-}
-
-/**
- * 대화를 JSON 파일로 저장
- */
-async function saveAsJsonFile(
-  title: string,
-  messages: ChatMessage[],
-  rawText: string,
-  url: string,
-  summaryResult: any
-): Promise<string> {
-  try {
-    // conversations 디렉토리 확인 및 생성
-    const conversationsDir = path.join(process.cwd(), 'conversations');
-    await fs.mkdir(conversationsDir, { recursive: true });
-
-    // 파일명 생성 (제목에서 유효하지 않은 문자 제거)
-    const sanitizedTitle = title
-      .replace(/[/\\?%*:|"<>]/g, '-')
-      .replace(/\s+/g, '-')
-      .toLowerCase();
-    
-    const fileName = `${sanitizedTitle}-${Date.now()}.json`;
-    const filePath = path.join(conversationsDir, fileName);
-
-    // 대화 데이터 저장
-    const conversationData = {
-      title,
-      url,
-      timestamp: new Date().toISOString(),
-      messages,
-      rawText,
-      summary: summaryResult.summary,
-      keywords: summaryResult.keywords
-    };
-
-    await fs.writeFile(
-      filePath,
-      JSON.stringify(conversationData, null, 2),
-      'utf-8'
-    );
-
-    console.log(`JSON 파일 저장 완료: ${filePath}`);
-    return filePath;
-  } catch (error) {
-    console.error('JSON 파일 저장 중 오류:', error);
-    throw error;
   }
 }
 

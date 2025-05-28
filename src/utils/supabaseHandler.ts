@@ -3,22 +3,41 @@ import { ChatMessage, ChatChunk, ChatSession } from '@/types';
 import { getEmbedding, chunkMessages } from './embeddings';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { classifySessionCategory } from './categoryClassifier';
+import { createClient } from '@supabase/supabase-js';
 
-// 실행 환경에 따라 적절한 Supabase 클라이언트를 반환하는 함수
+// 싱글톤 클라이언트 인스턴스
+let supabaseInstance: SupabaseClient | null = null;
+
+// 일반 클라이언트 (RLS 적용) - 싱글톤 패턴
 function getSupabase(): SupabaseClient {
-  // 브라우저 환경과 서버 환경에 따라 적절한 클라이언트 반환
-  if (typeof window !== 'undefined') {
-    // 클라이언트 측에서는 getSupabaseClient()가 null을 반환하지 않음을 보장
-    return getSupabaseClient();
-  } else {
-    // 서버 측에서는 getSupabaseAdmin()이 null을 반환하지 않음을 보장
-    const admin = getSupabaseAdmin();
-    if (!admin) {
-      console.error('Supabase Admin 클라이언트가 초기화되지 않았습니다. 환경 변수를 확인하세요.');
-      throw new Error('Supabase Admin 클라이언트 초기화 실패');
-    }
-    return admin;
+  if (supabaseInstance) {
+    return supabaseInstance;
   }
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Supabase 환경 변수가 설정되지 않았습니다.');
+    throw new Error('Supabase 환경 변수가 설정되지 않았습니다.');
+  }
+  
+  supabaseInstance = createClient(supabaseUrl, supabaseKey);
+  return supabaseInstance;
+}
+
+// RAG 검색용 클라이언트 (Admin 권한으로 공개 데이터 접근)
+function getSupabaseForRag(): SupabaseClient {
+  // 서버 사이드에서는 Admin 클라이언트 사용
+  if (typeof window === 'undefined') {
+    const adminClient = getSupabaseAdmin();
+    if (adminClient) {
+      return adminClient;
+    }
+  }
+  
+  // 클라이언트 사이드에서는 일반 클라이언트 사용
+  return getSupabase();
 }
 
 /**
@@ -101,7 +120,8 @@ export async function insertChatSession({
   summary,
   messages,
   metadata = {},
-  skipDuplicateCheck = false
+  skipDuplicateCheck = false,
+  userId = null
 }: {
   title: string;
   url: string;
@@ -109,6 +129,7 @@ export async function insertChatSession({
   messages: ChatMessage[];
   metadata?: Record<string, any>;
   skipDuplicateCheck?: boolean;
+  userId?: string | null;
 }) {
   try {
     // URL 중복 확인 (skipDuplicateCheck가 false일 때만)
@@ -171,7 +192,7 @@ export async function insertChatSession({
     // 요약 텍스트 임베딩 생성
     const embedding = await getEmbedding(sanitizedSummary);
     
-    // 세션 데이터 삽입
+    // 세션 데이터 삽입 (user_id 포함)
     const { data, error } = await getSupabase()
       .from('chat_sessions')
       .insert({
@@ -180,7 +201,8 @@ export async function insertChatSession({
         summary: sanitizedSummary,
         messages: sanitizedMessages,
         metadata: sanitizedMetadata,
-        embedding
+        embedding,
+        user_id: userId // 로그인한 사용자 ID 저장 (null이면 공개 대화)
       })
       .select('id')
       .single();
@@ -315,7 +337,7 @@ export async function searchSimilarChunks(
     const queryEmbedding = await getEmbedding(sanitizedQuery);
     console.log(`임베딩 생성 완료: ${queryEmbedding.length} 차원`);
     
-    // 유사한 청크 검색
+    // 유사한 청크 검색 (일반 클라이언트 사용 - 모든 데이터 접근 가능)
     const { data, error } = await getSupabase().rpc(
       'match_chunks',
       {
@@ -403,32 +425,42 @@ export async function getChatSessionById(id: string): Promise<ChatSession> {
  */
 export async function getAllChatSessions(): Promise<Partial<ChatSession>[]> {
   try {
-    // Supabase가 초기화되지 않은 경우 빈 배열 반환
-    if (!getSupabase()) {
-      console.warn('Supabase 클라이언트가 초기화되지 않았습니다. 환경 변수를 확인하세요.');
-      return [];
-    }
-    
     const { data, error } = await getSupabase()
       .from('chat_sessions')
-      .select('id, title, url, summary, messages, metadata, created_at')
+      .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('채팅 세션 가져오기 오류:', error);
-      
-      // 테이블이 존재하지 않는 경우 개발 목적으로 빈 배열 반환
-      if (error.code === 'PGRST116') {
-        console.warn('chat_sessions 테이블이 존재하지 않습니다. 테이블을 생성해야 합니다.');
-        return [];
-      }
-      
-      throw error;
+      return [];
     }
-    
+
     return data || [];
   } catch (error) {
-    console.error('채팅 세션 가져오기 오류:', error);
+    console.error('getAllChatSessions 오류:', error);
+    return [];
+  }
+}
+
+/**
+ * 특정 사용자의 대화 세션만 조회합니다.
+ */
+export async function getUserChatSessions(userId: string): Promise<Partial<ChatSession>[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from('chat_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('사용자 채팅 세션 가져오기 오류:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('getUserChatSessions 오류:', error);
     return [];
   }
 }
@@ -454,11 +486,48 @@ export async function getChunksBySessionId(sessionId: string): Promise<ChatChunk
 export async function searchChatSessions(keyword: string): Promise<Partial<ChatSession>[]> {
   const { data, error } = await getSupabase()
     .from('chat_sessions')
-    .select('id, title, url, summary, created_at, metadata')
+    .select('id, title, url, summary, created_at, metadata, user_id')
     .or(`title.ilike.%${keyword}%,summary.ilike.%${keyword}%`)
     .order('created_at', { ascending: false });
     
   if (error) throw error;
   
   return data;
+}
+
+/**
+ * 모든 대화 세션과 사용자별 대화 수를 함께 가져옵니다.
+ * @param currentUserId 현재 로그인한 사용자 ID (없으면 null)
+ * @returns 모든 대화 세션과 사용자별 대화 수
+ */
+export async function getAllChatSessionsWithUserCount(currentUserId: string | null = null): Promise<{
+  sessions: Partial<ChatSession>[];
+  userChatCount: number;
+}> {
+  try {
+    // 모든 대화 세션 가져오기
+    const { data: sessions, error: sessionsError } = await getSupabase()
+      .from('chat_sessions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (sessionsError) {
+      console.error('채팅 세션 가져오기 오류:', sessionsError);
+      return { sessions: [], userChatCount: 0 };
+    }
+
+    // 현재 사용자의 대화 수 계산
+    let userChatCount = 0;
+    if (currentUserId && sessions) {
+      userChatCount = sessions.filter(session => session.user_id === currentUserId).length;
+    }
+
+    return {
+      sessions: sessions || [],
+      userChatCount
+    };
+  } catch (error) {
+    console.error('getAllChatSessionsWithUserCount 오류:', error);
+    return { sessions: [], userChatCount: 0 };
+  }
 } 
