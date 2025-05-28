@@ -23,14 +23,38 @@ export default function Navbar() {
   // 로그아웃 처리
   const handleLogout = async () => {
     try {
-      await signOut();
       setIsMobileMenuOpen(false);
-      // 로그아웃 후 메인 페이지로 리다이렉트
-      router.push('/');
-      // 페이지 새로고침으로 상태 완전 초기화
-      window.location.reload();
+      
+      // 로그아웃 실행
+      const result = await signOut();
+      
+      if (result.success) {
+        // 성공적으로 로그아웃된 경우
+        console.log('로그아웃 성공:', result.message);
+        
+        // AuthContext의 상태 변화를 기다리기 위한 짧은 지연
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // 메인 페이지로 리다이렉트
+        router.push('/');
+      } else {
+        // 로그아웃 실패한 경우에도 메인 페이지로 이동
+        console.error('로그아웃 실패:', result.message);
+        router.push('/');
+        
+        // 실패 시에만 새로고침
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      }
     } catch (error) {
       console.error('로그아웃 오류:', error);
+      
+      // 오류 발생 시 메인 페이지로 이동 후 새로고침
+      router.push('/');
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
   };
 

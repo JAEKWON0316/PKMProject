@@ -74,7 +74,7 @@ export async function POST(request: Request): Promise<Response> {
           summary: result.summary,
           keywords: result.keywords,
           obsidian: result.obsidian,
-          jsonBackup: result.jsonBackup
+         
         }
       });
     } catch (handlerError) {

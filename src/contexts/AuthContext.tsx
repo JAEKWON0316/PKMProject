@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Auth state changed:', event, session)
         }
         
+        // 즉시 상태 업데이트
         setSession(session)
         setUser(session?.user ?? null)
         
@@ -88,13 +89,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await fetchUserProfile(session.user.id)
         }
         
-        // 로그아웃 시 프로필 초기화
+        // 로그아웃 시 즉시 프로필 초기화
         if (event === 'SIGNED_OUT') {
           setProfile(null)
+          setLoading(false)
+          
+          // 로그아웃 이벤트 발생 시 즉시 상태 업데이트
+          console.log('사용자 로그아웃 완료')
         }
         
         // 로딩 상태 업데이트
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setLoading(false)
+        }
+        
+        // 토큰 새로고침 시에도 상태 업데이트
+        if (event === 'TOKEN_REFRESHED') {
           setLoading(false)
         }
       }
