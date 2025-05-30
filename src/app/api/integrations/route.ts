@@ -2,17 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { PREDEFINED_CATEGORIES } from '@/utils/categoryClassifier';
 
+// 동적 라우트임을 명시
+export const dynamic = 'force-dynamic';
+
+// 간단한 메모리 캐시 (프로덕션에서는 Redis 등 사용 권장)
+let cachedData: any = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 2 * 60 * 1000; // 2분 캐시
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId'); // 현재 로그인한 사용자 ID (선택적)
+    const userId = request.nextUrl.searchParams.get('userId');
+    const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true';
+    
+    console.log('Integrations API 호출 - 사용자 ID:', userId, '강제 새로고침:', forceRefresh);
 
-    console.log('Integrations API 호출 - 사용자 ID:', userId);
+    // 캐시 확인 (강제 새로고침이 아닌 경우)
+    if (!forceRefresh && cachedData && Date.now() - cacheTimestamp < CACHE_TTL) {
+      console.log('캐시된 데이터 반환');
+      
+      // 사용자별 데이터는 동적으로 계산
+      if (userId && cachedData.sessions) {
+        const userChatCount = cachedData.sessions.filter((session: any) => session.user_id === userId).length;
+        const dynamicCategoryCounts = {
+          ...cachedData.categoryCounts,
+          '내 대화': userChatCount
+        };
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            ...cachedData,
+            userChatCount,
+            categoryCounts: dynamicCategoryCounts,
+            isAuthenticated: !!userId
+          }
+        });
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...cachedData,
+          userChatCount: 0,
+          isAuthenticated: !!userId
+        }
+      });
+    }
 
-    // Admin 클라이언트로 모든 대화 세션 조회
     const supabase = getSupabaseAdmin();
     
-    // supabase가 null인 경우 에러 처리
     if (!supabase) {
       console.error('Supabase Admin 클라이언트를 초기화할 수 없습니다.');
       return NextResponse.json(
@@ -21,9 +60,13 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    console.log('데이터베이스에서 새로운 데이터 조회...');
+    const startTime = Date.now();
+    
+    // 경량화: 메시지 필드를 제외하고 필요한 필드만 선택
     const { data: sessions, error: sessionsError } = await supabase
       .from('chat_sessions')
-      .select('*')
+      .select('id, title, url, summary, metadata, created_at, user_id')
       .order('created_at', { ascending: false });
 
     if (sessionsError) {
@@ -34,49 +77,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 데이터 처리 및 카테고리 분류
-    const processedSessions = (sessions || []).map(session => {
+    const sessionsData = sessions || [];
+    
+    // 기본 카테고리 처리 (기존 메타데이터 활용, 복잡한 정규식 연산 최소화)
+    const processedSessions = sessionsData.map(session => {
       // 메타데이터가 없으면 기본값 설정
       if (!session.metadata) {
         session.metadata = { mainCategory: "기타", tags: [] };
       }
       
-      // 카테고리 처리 (기존 카테고리가 없거나 유효하지 않은 경우)
+      // 기존 카테고리가 없거나 유효하지 않은 경우에만 간단한 분류
       if (!session.metadata.mainCategory || !PREDEFINED_CATEGORIES.includes(session.metadata.mainCategory)) {
-        // 제목과 요약을 기반으로 간단한 카테고리 추측
-        const content = `${session.title || ''} ${session.summary || ''}`.toLowerCase();
-        
-        let guessedCategory = "기타";
-        
-        // 간단한 키워드 매칭으로 카테고리 추측
-        if (/코딩|개발|프로그래밍|코드|javascript|python|api|서버|앱/.test(content)) {
-          guessedCategory = "개발";
-        } else if (/학습|공부|교육|강의|수업|학교|과제/.test(content)) {
-          guessedCategory = "학습";
-        } else if (/비즈니스|업무|회의|프로젝트|업무|기획|보고서/.test(content)) {
-          guessedCategory = "업무";
-        } else if (/디자인|창작|그림|음악|콘텐츠|예술|작성/.test(content)) {
-          guessedCategory = "창작";
-        } else if (/게임|영화|취미|독서|음악|취미|여가/.test(content)) {
-          guessedCategory = "취미";
-        } else if (/가정|생활|요리|쇼핑|일상|집안/.test(content)) {
-          guessedCategory = "생활";
-        } else if (/운동|건강|다이어트|식단|질병|의료/.test(content)) {
-          guessedCategory = "건강";
-        } else if (/여행|관광|휴가|호텔|여행지|숙소/.test(content)) {
-          guessedCategory = "여행";
-        } else if (/금융|투자|주식|부동산|재테크|경제/.test(content)) {
-          guessedCategory = "경제";
-        } else if (/기술|ai|인공지능|블록체인|iot|가상현실/.test(content)) {
-          guessedCategory = "기술";
-        }
-        
-        session.metadata.mainCategory = guessedCategory;
-      }
-      
-      // 메시지 수 추가
-      if (session.messages && Array.isArray(session.messages)) {
-        session.metadata.messageCount = session.messages.length;
+        session.metadata.mainCategory = "기타"; // 기본값으로 설정하고 백그라운드에서 개선
       }
       
       return session;
@@ -88,27 +100,43 @@ export async function GET(request: NextRequest) {
       userChatCount = processedSessions.filter(session => session.user_id === userId).length;
     }
 
-    // 카테고리별 대화 수 계산 (모든 카테고리를 포함, 0개인 것도 포함)
-    const categoryCounts = PREDEFINED_CATEGORIES.reduce<Record<string, number>>((acc, category) => {
-      acc[category] = processedSessions.filter(session => 
-        session.metadata?.mainCategory === category
-      ).length;
-      return acc;
-    }, {});
-
-    // "All" 카테고리 추가
-    categoryCounts['All'] = processedSessions.length;
+    // 효율적인 카테고리 카운트 계산
+    const categoryCounts: Record<string, number> = {
+      'All': processedSessions.length
+    };
     
-    // "내 대화" 카테고리 추가 (로그인한 사용자만)
     if (userId) {
       categoryCounts['내 대화'] = userChatCount;
     }
 
-    console.log('처리 완료:', {
-      totalSessions: processedSessions.length,
-      userChatCount,
-      categoryCounts
+    // Map을 사용한 효율적인 카테고리 집계
+    const categoryMap = new Map<string, number>();
+    processedSessions.forEach(session => {
+      const category = session.metadata?.mainCategory || '기타';
+      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
     });
+
+    // 카테고리 카운트 통합
+    categoryMap.forEach((count, category) => {
+      categoryCounts[category] = count;
+    });
+
+    // 빈 카테고리들도 0으로 설정 (UI 일관성을 위해)
+    PREDEFINED_CATEGORIES.forEach(category => {
+      if (!(category in categoryCounts)) {
+        categoryCounts[category] = 0;
+      }
+    });
+
+    const endTime = Date.now();
+    console.log(`데이터 처리 완료: ${endTime - startTime}ms, 세션 수: ${processedSessions.length}`);
+
+    // 캐시 업데이트 (사용자별 정보 제외)
+    cachedData = {
+      sessions: processedSessions,
+      categoryCounts
+    };
+    cacheTimestamp = Date.now();
 
     return NextResponse.json({
       success: true,

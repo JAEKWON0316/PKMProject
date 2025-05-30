@@ -530,4 +530,220 @@ export async function getAllChatSessionsWithUserCount(currentUserId: string | nu
     console.error('getAllChatSessionsWithUserCount 오류:', error);
     return { sessions: [], userChatCount: 0 };
   }
+}
+
+/**
+ * 대화 세션을 경량화하여 빠르게 가져옵니다 (메시지 제외)
+ * 초기 로딩용으로 최적화됨
+ */
+export async function getAllChatSessionsLightweight(currentUserId: string | null = null): Promise<{
+  sessions: Partial<ChatSession>[];
+  userChatCount: number;
+  categoryCounts: Record<string, number>;
+}> {
+  try {
+    console.log('경량 세션 데이터 조회 시작...');
+    const startTime = Date.now();
+
+    // 메시지를 제외한 필수 필드만 선택하여 속도 향상
+    const { data: sessions, error: sessionsError } = await getSupabase()
+      .from('chat_sessions')
+      .select('id, title, url, summary, metadata, created_at, user_id, messages')
+      .order('created_at', { ascending: false });
+
+    if (sessionsError) {
+      console.error('경량 채팅 세션 가져오기 오류:', sessionsError);
+      return { sessions: [], userChatCount: 0, categoryCounts: {} };
+    }
+
+    const sessionsData = sessions || [];
+    
+    // 각 세션의 메시지 개수 계산 (클라이언트에서 직접 계산)
+    const sessionWithMessageCounts = sessionsData.map((session) => {
+      let messageCount = 0;
+      
+      try {
+        // messages가 배열인지 확인하고 개수 계산
+        if (Array.isArray(session.messages)) {
+          messageCount = session.messages.length;
+        } else if (session.messages && typeof session.messages === 'object') {
+          // messages가 객체인 경우 키의 개수 또는 다른 로직 적용
+          messageCount = Object.keys(session.messages).length;
+        }
+      } catch (err) {
+        console.warn(`세션 ${session.id}의 메시지 개수 계산 오류:`, err);
+        messageCount = 0;
+      }
+
+      // messages 필드를 제거하고 messageCount를 메타데이터에 추가
+      const { messages: _, ...sessionWithoutMessages } = session;
+      
+      return {
+        ...sessionWithoutMessages,
+        metadata: {
+          ...session.metadata,
+          messageCount
+        }
+      };
+    });
+
+    // 사용자 대화 수 계산
+    let userChatCount = 0;
+    if (currentUserId) {
+      userChatCount = sessionWithMessageCounts.filter(session => session.user_id === currentUserId).length;
+    }
+
+    // 기본 카테고리 분류 (이미 저장된 메타데이터 활용)
+    const categoryCounts: Record<string, number> = {
+      'All': sessionWithMessageCounts.length
+    };
+
+    if (currentUserId) {
+      categoryCounts['내 대화'] = userChatCount;
+    }
+
+    // 기존 카테고리 정보 활용 (복잡한 정규식 연산 회피)
+    const categoryMap = new Map<string, number>();
+    
+    sessionWithMessageCounts.forEach(session => {
+      const category = session.metadata?.mainCategory || '기타';
+      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+    });
+
+    // 카테고리 카운트 통합
+    categoryMap.forEach((count, category) => {
+      categoryCounts[category] = count;
+    });
+
+    // 빈 카테고리들도 0으로 설정 (UI 일관성)
+    const predefinedCategories = ['개발', '학습', '업무', '창작', '취미', '생활', '건강', '여행', '경제', '기술', '기타'];
+    predefinedCategories.forEach(category => {
+      if (!(category in categoryCounts)) {
+        categoryCounts[category] = 0;
+      }
+    });
+
+    const endTime = Date.now();
+    console.log(`경량 세션 데이터 조회 완료: ${endTime - startTime}ms, 세션 수: ${sessionWithMessageCounts.length}`);
+
+    return {
+      sessions: sessionWithMessageCounts,
+      userChatCount,
+      categoryCounts
+    };
+  } catch (error) {
+    console.error('getAllChatSessionsLightweight 오류:', error);
+    return { sessions: [], userChatCount: 0, categoryCounts: {} };
+  }
+}
+
+/**
+ * 세션들의 카테고리를 백그라운드에서 개선합니다
+ * 사용자가 이미 데이터를 보고 있는 동안 실행됨
+ */
+export async function enhanceSessionCategories(sessionIds: string[]): Promise<{
+  enhanced: number;
+  errors: number;
+}> {
+  try {
+    console.log(`${sessionIds.length}개 세션의 카테고리 개선 시작...`);
+    
+    let enhanced = 0;
+    let errors = 0;
+    
+    // 배치로 처리 (한 번에 너무 많이 처리하지 않음)
+    const batchSize = 10;
+    for (let i = 0; i < sessionIds.length; i += batchSize) {
+      const batch = sessionIds.slice(i, i + batchSize);
+      
+      try {
+        // 배치별로 세션 정보 가져오기
+        const { data: sessions, error } = await getSupabase()
+          .from('chat_sessions')
+          .select('id, title, summary, metadata')
+          .in('id', batch);
+          
+        if (error) throw error;
+        
+        // 카테고리 개선이 필요한 세션들 처리
+        for (const session of sessions || []) {
+          if (!session.metadata?.mainCategory || session.metadata.mainCategory === '기타') {
+            try {
+              // 간단한 키워드 기반 분류
+              const improvedCategory = await improveSessionCategory(session);
+              
+              if (improvedCategory !== session.metadata?.mainCategory) {
+                // 개선된 카테고리로 업데이트
+                const { error: updateError } = await getSupabase()
+                  .from('chat_sessions')
+                  .update({
+                    metadata: {
+                      ...session.metadata,
+                      mainCategory: improvedCategory,
+                      enhancedAt: new Date().toISOString()
+                    }
+                  })
+                  .eq('id', session.id);
+                  
+                if (updateError) throw updateError;
+                enhanced++;
+              }
+            } catch (err) {
+              console.error(`세션 ${session.id} 카테고리 개선 실패:`, err);
+              errors++;
+            }
+          }
+        }
+      } catch (batchError) {
+        console.error(`배치 ${i}-${i + batchSize} 처리 실패:`, batchError);
+        errors += batch.length;
+      }
+      
+      // 배치 간 짧은 대기 (DB 부하 방지)
+      if (i + batchSize < sessionIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    console.log(`카테고리 개선 완료: ${enhanced}개 개선, ${errors}개 오류`);
+    return { enhanced, errors };
+  } catch (error) {
+    console.error('enhanceSessionCategories 오류:', error);
+    return { enhanced: 0, errors: sessionIds.length };
+  }
+}
+
+/**
+ * 단일 세션의 카테고리를 개선합니다
+ */
+async function improveSessionCategory(session: any): Promise<string> {
+  const content = `${session.title || ''} ${session.summary || ''}`.toLowerCase();
+  
+  // 효율적인 키워드 매칭 (정규식 최소화)
+  const categoryKeywords = {
+    '개발': ['코딩', '개발', '프로그래밍', 'javascript', 'python', 'react', 'api', '서버'],
+    '학습': ['학습', '공부', '교육', '강의', '수업', '과제'],
+    '업무': ['비즈니스', '업무', '회의', '프로젝트', '기획', '보고서'],
+    '창작': ['디자인', '창작', '콘텐츠', '예술', '작성'],
+    '취미': ['게임', '영화', '취미', '독서', '여가'],
+    '생활': ['요리', '쇼핑', '일상', '집안'],
+    '건강': ['운동', '건강', '다이어트', '의료'],
+    '여행': ['여행', '관광', '휴가', '숙소'],
+    '경제': ['금융', '투자', '주식', '경제'],
+    '기술': ['ai', '인공지능', '블록체인', 'iot']
+  };
+  
+  // 가장 많이 매칭되는 카테고리 찾기
+  let bestCategory = '기타';
+  let maxMatches = 0;
+  
+  Object.entries(categoryKeywords).forEach(([category, keywords]) => {
+    const matches = keywords.filter(keyword => content.includes(keyword)).length;
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      bestCategory = category;
+    }
+  });
+  
+  return bestCategory;
 } 

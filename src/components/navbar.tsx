@@ -76,7 +76,7 @@ export default function Navbar() {
             <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
               <div className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 group-hover:scale-105 transition-transform">
                 <Image 
-                  src="/pkm001.png" 
+                  src="/pkmlogo006.png" 
                   alt="PKM AI Logo" 
                   width={32} 
                   height={32} 
@@ -93,6 +93,7 @@ export default function Navbar() {
               <NavLink href="/save-chat" label="대화 저장" isActive={pathname === '/save-chat'} />
               <NavLink href="/rag" label="RAG 검색" isActive={pathname.startsWith('/rag')} />
               <NavLink href="/integrations" label="대화 찾아보기" isActive={pathname === '/integrations'} />
+              <NavLink href="/pricing" label="가격" isActive={pathname === '/pricing'} />
               <NavLink href="/dashboard" label="대시보드" isActive={pathname === '/dashboard'} />
             </div>
 
@@ -153,7 +154,7 @@ export default function Navbar() {
           <Link href="/" className="flex items-center space-x-2 cursor-pointer group">
             <div className="relative flex items-center justify-center w-10 h-10 group-hover:scale-105 transition-transform">
               <Image 
-                src="/pkm001.png" 
+                src="/pkmlogo006.png" 
                 alt="PKM AI Logo" 
                 width={32} 
                 height={32} 
@@ -210,6 +211,12 @@ export default function Navbar() {
               href="/integrations" 
               label="대화 찾아보기" 
               isActive={pathname === '/integrations'}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <MobileNavLink 
+              href="/pricing" 
+              label="가격" 
+              isActive={pathname === '/pricing'}
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <MobileNavLink 

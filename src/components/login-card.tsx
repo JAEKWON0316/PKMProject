@@ -477,7 +477,7 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
       <div className="mb-4 sm:mb-8 flex justify-center">
         <div className="relative h-12 w-12 sm:h-20 sm:w-20">
           <Image
-            src="/pkm001.png"
+            src="/pkmlogo006.png"
             alt="PKM Brain Logo"
             width={80}
             height={80}

@@ -7,6 +7,7 @@ import IntegrationGrid from "@/components/IntegrationGrid"
 import Pagination from "@/components/Pagination"
 import { ChatSession } from "@/types"
 import { useAuth } from "@/contexts/AuthContext"
+import { getAllChatSessionsLightweight } from "@/utils/supabaseHandler"
 
 const ITEMS_PER_PAGE = 30
 
@@ -48,32 +49,37 @@ export default function IntegrationsClient() {
     router.push(`/integrations?${params.toString()}`)
   }
 
-  // API에서 데이터 가져오기
+  // 데이터 로딩 (클라이언트 직접 조회만)
   const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const url = new URL('/api/integrations', window.location.origin)
-      if (user?.id) {
-        url.searchParams.set('userId', user.id)
-      }
+      console.log('🚀 데이터 로딩 시작...')
+      const startTime = Date.now()
       
-      console.log('API 호출:', url.toString())
+      // 클라이언트에서 직접 조회
+      const result = await getAllChatSessionsLightweight(user?.id)
       
-      const response = await fetch(url.toString())
-      const result = await response.json()
+      const endTime = Date.now()
+      console.log(`⚡ 로딩 완료: ${endTime - startTime}ms`)
       
-      if (!result.success) {
-        throw new Error(result.error || '데이터를 불러올 수 없습니다.')
-      }
+      setData({
+        sessions: result.sessions,
+        userChatCount: result.userChatCount,
+        categoryCounts: result.categoryCounts,
+        isAuthenticated: !!user?.id
+      })
       
-      setData(result.data)
-      console.log('데이터 로드 완료:', result.data)
+      console.log('📊 로드된 데이터:', {
+        총세션수: result.sessions.length,
+        사용자대화수: result.userChatCount,
+        카테고리수: Object.keys(result.categoryCounts).length
+      })
       
     } catch (err) {
       console.error('데이터 로딩 오류:', err)
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.')
+      setError(err instanceof Error ? err.message : '데이터를 불러올 수 없습니다.')
     } finally {
       setLoading(false)
     }
@@ -83,7 +89,7 @@ export default function IntegrationsClient() {
   useEffect(() => {
     fetchData()
   }, [user?.id])
-  
+
   // 카테고리 변경 핸들러
   const handleCategoryChange = (newCategory: string) => {
     setCategory(newCategory)
@@ -183,6 +189,7 @@ export default function IntegrationsClient() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
             <p className="text-xl text-gray-300">PKM AI</p>
+            <p className="text-sm text-gray-400 mt-2">로딩 중...</p>
           </div>
         </div>
       </div>
@@ -197,19 +204,19 @@ export default function IntegrationsClient() {
           <div className="text-center">
             <p className="text-xl text-red-400 mb-4">오류가 발생했습니다</p>
             <p className="text-gray-300 mb-4">{error}</p>
-            <button 
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-            >
-              다시 시도
-            </button>
+            <div className="space-x-4">
+              <button 
+                onClick={handleRefresh}
+                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+              >
+                다시 시도
+              </button>
+            </div>
           </div>
         </div>
       </div>
     )
   }
-
-  if (!data) return null
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
@@ -220,6 +227,7 @@ export default function IntegrationsClient() {
             <h2 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">카테고리</h2>
             <button 
               onClick={handleRefresh}
+              disabled={loading}
               className="p-1 hover:bg-gray-700 rounded transition-colors"
               title="새로고침"
             >
@@ -230,7 +238,7 @@ export default function IntegrationsClient() {
           </div>
           <div className="space-y-1">
             {mainCategories.map(cat => (
-              <button
+              <button 
                 key={cat}
                 onClick={() => handleCategoryChange(cat)}
                 className={`w-full text-left px-3 py-2 rounded-md text-sm flex justify-between items-center ${
@@ -241,10 +249,20 @@ export default function IntegrationsClient() {
               >
                 <span>{cat}</span>
                 <span className="text-xs bg-gray-700 px-2 py-1 rounded-full">
-                  {data.categoryCounts[cat] || 0}
+                  {data?.categoryCounts[cat] || 0}
                 </span>
               </button>
             ))}
+          </div>
+          
+          {/* 상태 정보 */}
+          <div className="mt-6 pt-4 border-t border-gray-700">
+            <div className="text-xs text-gray-400 space-y-1">
+              <div>총 {data?.sessions.length || 0}개 대화</div>
+              {data?.isAuthenticated && (
+                <div>내 대화 {data.userChatCount}개</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -267,7 +285,7 @@ export default function IntegrationsClient() {
             >
               {mainCategories.map(cat => (
                 <option key={cat} value={cat}>
-                  {cat} ({data.categoryCounts[cat] || 0})
+                  {cat} ({data?.categoryCounts[cat] || 0})
                 </option>
               ))}
             </select>
@@ -276,10 +294,10 @@ export default function IntegrationsClient() {
         
         {/* 검색창 */}
         <div className="mb-6 border-b">
-          <SearchBar 
+          <SearchBar
             onSearch={handleSearch}
-            initialValue={initialQuery}
-            initialMode={initialMode}
+            initialValue={query}
+            initialMode={searchMode}
           />
         </div>
 
@@ -308,13 +326,16 @@ export default function IntegrationsClient() {
         
           {filteredSessions.length > 0 ? (
             <>
-              <IntegrationGrid chatSessions={paginatedSessions} integrations={[]} />
+              <IntegrationGrid 
+                chatSessions={paginatedSessions}
+                integrations={[]}
+              />
               {totalPages > 1 && (
                 <div className="mt-6">
-                  <Pagination 
-                    currentPage={page} 
-                    totalPages={totalPages} 
-                    onPageChange={handlePageChange} 
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
                   />
                 </div>
               )}
