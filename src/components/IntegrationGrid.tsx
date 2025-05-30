@@ -48,7 +48,11 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
         {fakeIntegrations.map((integration) => (
-          <IntegrationCard key={integration.id} integration={integration} categoryCount={categoryCount} />
+          <IntegrationCard 
+            key={integration.id} 
+            integration={integration} 
+            categoryCount={categoryCount} 
+          />
         ))}
       </div>
     );
@@ -58,7 +62,11 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
       {integrations.map((integration) => (
-        <IntegrationCard key={integration.id} integration={integration} categoryCount={categoryCount} />
+        <IntegrationCard 
+          key={integration.id} 
+          integration={integration} 
+          categoryCount={categoryCount} 
+        />
       ))}
     </div>
   )

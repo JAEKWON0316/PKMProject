@@ -22,3 +22,9 @@ out/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+#cursor
+.cursor
+
+#memory
+tasks.json

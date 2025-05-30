@@ -9,6 +9,7 @@ import Navbar from "@/components/navbar"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: "PKM AI - AI 지식관리 플랫폼",
   description: "PKM AI와 함께 더 스마트하게 대화하고, 지식을 관리하세요. AI 기반 개인 지식 관리 시스템으로 대화를 저장하고 검색할 수 있습니다.",
   keywords: ["PKM", "AI", "지식관리", "ChatGPT", "대화저장", "RAG", "인공지능"],

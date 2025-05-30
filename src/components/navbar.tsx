@@ -25,36 +25,25 @@ export default function Navbar() {
     try {
       setIsMobileMenuOpen(false);
       
-      // 로그아웃 실행
+      // 즉시 홈페이지로 리다이렉트 (로그인 화면 방지)
+      router.push('/');
+      
+      // 그 다음에 로그아웃 실행 (백그라운드에서)
       const result = await signOut();
       
-      if (result.success) {
-        // 성공적으로 로그아웃된 경우
-        console.log('로그아웃 성공:', result.message);
-        
-        // AuthContext의 상태 변화를 기다리기 위한 짧은 지연
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // 메인 페이지로 리다이렉트
-        router.push('/');
-      } else {
-        // 로그아웃 실패한 경우에도 메인 페이지로 이동
+      if (!result.success) {
         console.error('로그아웃 실패:', result.message);
-        router.push('/');
-        
-        // 실패 시에만 새로고침
+        // 실패한 경우에만 새로고침
         setTimeout(() => {
           window.location.reload();
-        }, 100);
+        }, 500);
       }
     } catch (error) {
       console.error('로그아웃 오류:', error);
-      
-      // 오류 발생 시 메인 페이지로 이동 후 새로고침
-      router.push('/');
+      // 오류 발생 시에만 새로고침
       setTimeout(() => {
         window.location.reload();
-      }, 100);
+      }, 500);
     }
   };
 
@@ -274,7 +263,6 @@ export default function Navbar() {
     </>
   )
 }
-
 interface NavLinkProps {
   href: string;
   label: string;
@@ -315,3 +303,4 @@ function MobileNavLink({ href, label, isActive, onClick }: MobileNavLinkProps) {
     </Link>
   );
 }
+

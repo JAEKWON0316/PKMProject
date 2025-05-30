@@ -1,8 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { getSession, onAuthStateChange, getUserProfile } from '@/lib/auth'
+import { getSession, onAuthStateChange, getUserProfile, signOut } from '@/lib/auth'
 import { useRouter, usePathname } from 'next/navigation'
 
 // 프로필 타입 정의
@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
+  
+  const sessionCheckRef = useRef<NodeJS.Timeout | null>(null)
 
   // 사용자 프로필 가져오기
   const fetchUserProfile = async (userId: string) => {
@@ -46,6 +48,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(profileData)
     } catch (error) {
       console.error('프로필 가져오기 오류:', error)
+    }
+  }
+
+  // 세션 만료 체크 및 자동 로그아웃
+  const checkSessionExpiry = async () => {
+    try {
+      const currentSession = await getSession()
+      if (!currentSession) {
+        // 세션이 없으면 자동 로그아웃
+        await signOut()
+        router.push('/')
+      }
+    } catch (error) {
+      console.error('세션 체크 오류:', error)
     }
   }
 
@@ -62,6 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 사용자가 있으면 프로필도 가져오기
         if (currentSession?.user) {
           await fetchUserProfile(currentSession.user.id)
+          
+          // 10분마다 세션 상태 체크
+          if (sessionCheckRef.current) {
+            clearInterval(sessionCheckRef.current)
+          }
+          sessionCheckRef.current = setInterval(checkSessionExpiry, 10 * 60 * 1000)
         }
       } catch (error) {
         console.error('인증 초기화 오류:', error)
@@ -87,12 +109,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 로그인 시 프로필 가져오기
         if (event === 'SIGNED_IN' && session?.user) {
           await fetchUserProfile(session.user.id)
+          
+          // 세션 체크 타이머 시작
+          if (sessionCheckRef.current) {
+            clearInterval(sessionCheckRef.current)
+          }
+          sessionCheckRef.current = setInterval(checkSessionExpiry, 10 * 60 * 3000)
         }
         
         // 로그아웃 시 즉시 프로필 초기화
         if (event === 'SIGNED_OUT') {
           setProfile(null)
           setLoading(false)
+          
+          // 타이머 정리
+          if (sessionCheckRef.current) {
+            clearInterval(sessionCheckRef.current)
+            sessionCheckRef.current = null
+          }
           
           // 로그아웃 이벤트 발생 시 즉시 상태 업데이트
           console.log('사용자 로그아웃 완료')
@@ -112,6 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe()
+      if (sessionCheckRef.current) {
+        clearInterval(sessionCheckRef.current)
+      }
     }
   }, [router, pathname])
 
