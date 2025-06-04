@@ -2,6 +2,7 @@ import type { Integration } from "@/app/data/integrations"
 import IntegrationCard from "./IntegrationCard"
 import { ChatSession } from "@/types"
 import { MessageSquare, Book, Code, Briefcase, Music, Heart, Home, Activity, Plane, DollarSign, Cpu, LucideIcon } from "lucide-react"
+import { useState } from 'react';
 
 // 카테고리별 아이콘 매핑
 const categoryIcons: Record<string, React.ElementType> = {
@@ -26,14 +27,17 @@ type IntegrationGridProps = {
 }
 
 export default function IntegrationGrid({ integrations, chatSessions = [], categoryCount, onFavoriteToggle }: IntegrationGridProps) {
-  // 채팅 세션이 제공된 경우 이를 먼저 표시
+  // 삭제 성공 시 부모의 onFavoriteToggle만 호출
+  const handleDeleteSuccess = () => {
+    onFavoriteToggle?.();
+  };
+
   if (chatSessions.length > 0) {
     // 각 세션을 임시 Integration 객체로 변환
     const fakeIntegrations = chatSessions.map(session => {
       const mainCategory = session.metadata?.mainCategory || "기타";
       // 카테고리에 맞는 아이콘 선택, 없으면 기본 아이콘 사용
       const icon = categoryIcons[mainCategory] || MessageSquare;
-      
       return {
         id: session.id || "",
         name: session.title || "제목 없음",
@@ -54,6 +58,7 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
             integration={integration} 
             categoryCount={categoryCount}
             onFavoriteToggle={onFavoriteToggle}
+            onDeleteSuccess={handleDeleteSuccess}
           />
         ))}
       </div>
@@ -69,6 +74,7 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
           integration={integration} 
           categoryCount={categoryCount}
           onFavoriteToggle={onFavoriteToggle}
+          onDeleteSuccess={handleDeleteSuccess}
         />
       ))}
     </div>

@@ -812,4 +812,40 @@ export async function toggleChatSessionFavorite(
       error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.' 
     };
   }
+}
+
+/**
+ * 대화 세션(chat_sessions) 삭제 함수
+ * @param sessionId 삭제할 세션 ID
+ * @param userId 현재 로그인한 사용자 ID (권한 검증용)
+ * @param supabaseClient 인증 context가 반영된 SupabaseClient (API 라우트에서 전달)
+ * @returns { success: boolean; error?: string }
+ */
+export async function deleteChatSession(
+  sessionId: string,
+  userId: string,
+  supabaseClient?: SupabaseClient
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!sessionId || !userId) {
+      return { success: false, error: '세션 ID와 사용자 ID가 필요합니다.' };
+    }
+    const supabase = supabaseClient || getSupabase();
+    // 본인 소유 세션만 삭제 (RLS로도 보장되지만, 이중 체크)
+    const { error } = await supabase
+      .from('chat_sessions')
+      .delete()
+      .eq('id', sessionId)
+      .eq('user_id', userId);
+    if (error) {
+      // 권한 없음(403), 존재하지 않음(404) 등 구분
+      if (error.code === '42501' || error.message.includes('not allowed')) {
+        return { success: false, error: '권한이 없습니다.' };
+      }
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : '알 수 없는 오류' };
+  }
 } 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { parseChatGPTLink } from '@/lib/utils/chatgpt';
 import { summarizeConversation, summarizeLongConversation } from '@/lib/utils/openai';
-import { insertChatSession, processAndInsertChunks, checkUrlExists } from '@/utils/supabaseHandler';
+import { insertChatSession, processAndInsertChunks, checkUrlExists, deleteChatSession } from '@/utils/supabaseHandler';
 import { saveToObsidian, commitToGitHub } from '@/utils/automation';
 import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs/promises';
@@ -199,8 +199,9 @@ export async function POST(request: Request): Promise<Response> {
       
       // 6. 대화 데이터 Supabase에 저장 (임베딩 포함)
       console.log('Supabase에 대화 세션 저장 중...');
+      const titleToSave = (summaryResult.title && typeof summaryResult.title === 'string' && summaryResult.title.trim()) || (conversation.title && conversation.title.trim()) || '제목 없음';
       const sessionData = await insertChatSession({
-        title: conversation.title,
+        title: titleToSave,
         url,
         summary: summaryResult.summary,
         messages: conversation.messages,
@@ -227,7 +228,7 @@ export async function POST(request: Request): Promise<Response> {
       // 8. GitHub에 변경사항 커밋/푸시
       console.log('GitHub에 변경사항 커밋 중...');
       try {
-        await commitToGitHub(`Add: ${conversation.title} (${new Date().toISOString()})`);
+        await commitToGitHub(`Add: ${titleToSave} (${new Date().toISOString()})`);
         console.log('GitHub 커밋 완료');
       } catch (gitError) {
         console.error('GitHub 커밋 오류:', gitError);
@@ -240,7 +241,7 @@ export async function POST(request: Request): Promise<Response> {
         message: '대화 크롤링 및 저장이 완료되었습니다.',
         data: {
           id: sessionData.id,
-          title: conversation.title,
+          title: titleToSave,
           url,
           summary: summaryResult.summary,
           keywords: summaryResult.keywords.join(','),
@@ -323,5 +324,66 @@ function isValidChatGPTUrl(url: string): boolean {
     return parsed.pathname.includes('/share/') || parsed.pathname.includes('/c/');
   } catch (error) {
     return false;
+  }
+}
+
+export async function DELETE(request: Request): Promise<Response> {
+  try {
+    // 인증 토큰 추출 및 supabaseClient 생성
+    let currentUserId: string | null = null;
+    let supabase: any = null;
+    try {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          }
+        );
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error) {
+          return NextResponse.json({ success: false, error: '인증 실패: ' + error.message }, { status: 401 });
+        } else if (user) {
+          currentUserId = user.id;
+        } else {
+          return NextResponse.json({ success: false, error: '인증된 사용자 정보가 없습니다.' }, { status: 401 });
+        }
+      } else {
+        return NextResponse.json({ success: false, error: '인증 토큰이 필요합니다.' }, { status: 401 });
+      }
+    } catch (authError) {
+      return NextResponse.json({ success: false, error: '인증 처리 중 오류: ' + String(authError) }, { status: 401 });
+    }
+
+    // body에서 sessionId 추출
+    let sessionId: string | undefined;
+    try {
+      const body = await request.json();
+      sessionId = body.sessionId;
+    } catch (e) {
+      return NextResponse.json({ success: false, error: '요청 본문 파싱 실패' }, { status: 400 });
+    }
+    if (!sessionId) {
+      return NextResponse.json({ success: false, error: 'sessionId가 필요합니다.' }, { status: 400 });
+    }
+
+    // 삭제 실행
+    const result = await deleteChatSession(sessionId, currentUserId!, supabase);
+    if (!result.success) {
+      if (result.error === '권한이 없습니다.') {
+        return NextResponse.json({ success: false, error: result.error }, { status: 403 });
+      }
+      return NextResponse.json({ success: false, error: result.error || '삭제 실패' }, { status: 400 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 } 

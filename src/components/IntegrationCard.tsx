@@ -1,6 +1,6 @@
 import type { Integration } from "@/app/data/integrations"
 import { Card, CardContent } from "@/components/ui/card"
-import { MessageSquare, Clock, Star, LucideIcon } from "lucide-react"
+import { MessageSquare, Clock, Star, LucideIcon, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { ko } from "date-fns/locale"
@@ -8,11 +8,15 @@ import { ChatSession } from "@/types"
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { getSupabaseClient } from "@/lib/supabase"
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 type IntegrationCardProps = {
   integration: Integration & { url?: string; chatSession?: Partial<ChatSession> }
   categoryCount?: number
   onFavoriteToggle?: () => void
+  onDeleteSuccess?: (sessionId: string) => void
 }
 
 // 카테고리별 색상 매핑
@@ -44,12 +48,16 @@ const categoryColors: Record<string, string> = {
   "Social Media": "#8b5cf6"
 }
 
-export default function IntegrationCard({ integration, categoryCount, onFavoriteToggle }: IntegrationCardProps) {
-  const { user, isAuthenticated } = useAuth()
+export default function IntegrationCard({ integration, categoryCount, onFavoriteToggle, onDeleteSuccess }: IntegrationCardProps) {
+  const { user, isAuthenticated, session } = useAuth()
   const [isUpdating, setIsUpdating] = useState(false)
   const [favoriteState, setFavoriteState] = useState(
     integration.chatSession?.metadata?.favorite || false
   )
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
   
   // Icon 타입을 LucideIcon으로 명시적으로 지정합니다
   const Icon = integration.icon as React.ElementType
@@ -196,109 +204,171 @@ export default function IntegrationCard({ integration, categoryCount, onFavorite
     }
   }
 
+  // 삭제 핸들러 분리: 실제 삭제만 담당
+  const doDelete = async () => {
+    if (!chatSession?.id || !user?.id) return;
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/rag/conversations", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token || ""}`,
+        },
+        body: JSON.stringify({ sessionId: chatSession.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOpen(false);
+        onDeleteSuccess?.(chatSession.id);
+      } else {
+        setDeleteError(data.error || "삭제 실패");
+      }
+    } catch (err) {
+      setDeleteError("네트워크 오류");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <Link href={url} className="block h-full">
-      <Card className="hover:shadow-lg transition-all duration-300 group h-full bg-gray-800 border-gray-700 hover:border-purple-500/50 hover:transform hover:scale-[1.02] relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/0 via-purple-600/0 to-purple-600/0 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-        <CardContent className="p-4 flex flex-col h-full">
-          {/* 헤더 섹션 */}
-          <div className="flex items-start justify-between mb-2">
-            {/* 아이콘과 카테고리 정보 */}
-            <div className="flex items-center">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center mr-2 transition-transform group-hover:scale-110"
-                style={{ backgroundColor: `${color}20` }}
-              >
-                {/* Icon을 JSX 요소로 렌더링 */}
-                <Icon
-                  className="w-4 h-4 transition-all group-hover:text-white"
-                  style={{ color }}
-                />
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <Link href={url} className="block h-full">
+          <Card className="hover:shadow-lg transition-all duration-300 group h-full bg-gray-800 border-gray-700 hover:border-purple-500/50 hover:transform hover:scale-[1.02] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/0 via-purple-600/0 to-purple-600/0 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+            <CardContent className="p-4 flex flex-col h-full">
+              {/* 헤더 섹션 */}
+              <div className="flex items-start justify-between mb-2">
+                {/* 아이콘과 카테고리 정보 */}
+                <div className="flex items-center">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center mr-2 transition-transform group-hover:scale-110"
+                    style={{ backgroundColor: `${color}20` }}
+                  >
+                    {/* Icon을 JSX 요소로 렌더링 */}
+                    <Icon
+                      className="w-4 h-4 transition-all group-hover:text-white"
+                      style={{ color }}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium transition-colors" style={{ color }}>
+                      {category}
+                      {subCategory && ` / ${subCategory}`}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 날짜 정보 */}
+                {formattedDate && (
+                  <div className="text-xs text-gray-400 flex items-center">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {formattedDate}
+                  </div>
+                )}
               </div>
-              <div>
-                <div className="text-xs font-medium transition-colors" style={{ color }}>
-                  {category}
-                  {subCategory && ` / ${subCategory}`}
+              
+              {/* 제목 */}
+              <h3 className="font-semibold text-sm text-white mb-2 group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:via-purple-500 group-hover:to-pink-500 transition-all duration-300">
+                {title}
+              </h3>
+              
+              {/* 요약 */}
+              <p className="text-xs text-gray-400 flex-grow overflow-hidden group-hover:text-gray-300 transition-colors">
+                {summary.length > 150
+                  ? `${summary.substring(0, 150)}...`
+                  : summary}
+              </p>
+              
+              {/* 푸터 */}
+              <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
+                {/* 좌측: 삭제 버튼 + 태그 */}
+                <div className="flex items-center gap-2">
+                  {/* 내가 올린 대화만 삭제 버튼 노출 */}
+                  {chatSession?.user_id === user?.id && (
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpen(true); }}
+                      disabled={isDeleting}
+                      className="flex items-center gap-1 p-1 text-xs rounded transition-all focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-60 disabled:cursor-not-allowed relative z-20 pointer-events-auto"
+                      title="대화 삭제"
+                      type="button"
+                    >
+                      <Trash2 className="w-4 h-4 transition-colors text-gray-400 hover:text-purple-500" />
+                    </button>
+                  )}
+                  {/* 태그 (있을 경우) */}
+                  <div className="flex flex-wrap gap-1">
+                    {tags.slice(0, 2).map(tag => (
+                      <span 
+                        key={tag} 
+                        className="text-xs bg-gray-700 px-2 py-0.5 rounded-full group-hover:bg-gray-600 transition-colors"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {tags.length > 2 && (
+                      <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full group-hover:bg-gray-600 transition-colors">
+                        +{tags.length - 2}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* 메타데이터 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 flex items-center group-hover:text-gray-300 transition-colors">
+                    <MessageSquare className="w-3 h-3 mr-1" />
+                    {messageCount}
+                  </span>
+                  {/* 즐겨찾기 버튼 - 모든 대화에서 표시 */}
+                  {chatSession?.id && (
+                    <button
+                      onClick={handleFavoriteToggle}
+                      disabled={isUpdating}
+                      className={`p-1 rounded-sm transition-all duration-200 hover:scale-125 hover:bg-slate-700/50 ${
+                        !isAuthenticated ? 'cursor-pointer opacity-70 hover:opacity-100' : 'cursor-pointer'
+                      } ${isUpdating ? 'animate-pulse' : ''}`}
+                      title={
+                        !isAuthenticated 
+                          ? '즐겨찾기 기능은 로그인 후 이용할 수 있습니다' 
+                          : (favoriteState ? '즐겨찾기 해제' : '즐겨찾기 추가')
+                      }
+                      style={{ zIndex: 10 }}
+                    >
+                      <Star 
+                        className={`w-4 h-4 transition-colors ${
+                          !isAuthenticated
+                            ? 'text-gray-500'
+                            : favoriteState 
+                              ? 'text-amber-400 fill-amber-400' 
+                              : 'text-gray-400 hover:text-amber-400'
+                        }`} 
+                      />
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-            
-            {/* 날짜 정보 */}
-            {formattedDate && (
-              <div className="text-xs text-gray-400 flex items-center">
-                <Clock className="w-3 h-3 mr-1" />
-                {formattedDate}
-              </div>
-            )}
-          </div>
-          
-          {/* 제목 */}
-          <h3 className="font-semibold text-sm text-white mb-2 group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:via-purple-500 group-hover:to-pink-500 transition-all duration-300">
-            {title}
-          </h3>
-          
-          {/* 요약 */}
-          <p className="text-xs text-gray-400 flex-grow overflow-hidden group-hover:text-gray-300 transition-colors">
-            {summary.length > 150
-              ? `${summary.substring(0, 150)}...`
-              : summary}
-          </p>
-          
-          {/* 푸터 */}
-          <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
-            {/* 태그 (있을 경우) */}
-            <div className="flex flex-wrap gap-1">
-              {tags.slice(0, 2).map(tag => (
-                <span 
-                  key={tag} 
-                  className="text-xs bg-gray-700 px-2 py-0.5 rounded-full group-hover:bg-gray-600 transition-colors"
-                >
-                  {tag}
-                </span>
-              ))}
-              {tags.length > 2 && (
-                <span className="text-xs bg-gray-700 px-2 py-0.5 rounded-full group-hover:bg-gray-600 transition-colors">
-                  +{tags.length - 2}
-                </span>
+              {/* 삭제 에러 메시지 */}
+              {deleteError && (
+                <div className="text-xs text-red-400 mt-1">{deleteError}</div>
               )}
-            </div>
-            
-            {/* 메타데이터 */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 flex items-center group-hover:text-gray-300 transition-colors">
-                <MessageSquare className="w-3 h-3 mr-1" />
-                {messageCount}
-              </span>
-              {/* 즐겨찾기 버튼 - 모든 대화에서 표시 */}
-              {chatSession?.id && (
-                <button
-                  onClick={handleFavoriteToggle}
-                  disabled={isUpdating}
-                  className={`p-1 rounded-sm transition-all duration-200 hover:scale-125 hover:bg-slate-700/50 ${
-                    !isAuthenticated ? 'cursor-pointer opacity-70 hover:opacity-100' : 'cursor-pointer'
-                  } ${isUpdating ? 'animate-pulse' : ''}`}
-                  title={
-                    !isAuthenticated 
-                      ? '즐겨찾기 기능은 로그인 후 이용할 수 있습니다' 
-                      : (favoriteState ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                  }
-                  style={{ zIndex: 10 }}
-                >
-                  <Star 
-                    className={`w-4 h-4 transition-colors ${
-                      !isAuthenticated
-                        ? 'text-gray-500'
-                        : favoriteState 
-                          ? 'text-amber-400 fill-amber-400' 
-                          : 'text-gray-400 hover:text-amber-400'
-                    }`} 
-                  />
-                </button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+            </CardContent>
+          </Card>
+        </Link>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>정말로 삭제할까요?</DialogTitle>
+            <DialogDescription>이 대화는 복구할 수 없습니다. 정말 삭제하시겠습니까?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => { setOpen(false); router.push('/integrations'); }}>아니오</Button>
+            <Button variant="destructive" onClick={doDelete} disabled={isDeleting}>예</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

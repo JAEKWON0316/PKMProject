@@ -11,6 +11,7 @@ const MODEL = 'gpt-4.1-nano';
 
 // 요약 결과 타입 정의
 export interface SummaryResult {
+  title?: string;
   summary: string;
   keywords: string[];
   modelUsed: string;
@@ -31,17 +32,17 @@ export async function summarizeConversation(
       .map(msg => `${msg.role === 'user' ? '👤 사용자' : '🤖 AI'}: ${msg.content}`)
       .join('\n\n');
 
-    // API 요청 - 요약 및 키워드 추출
+    // API 요청 - 요약, 키워드, 제목 추출
     const response = await openai.chat.completions.create({
       model: MODEL,
       messages: [
         {
           role: 'system',
-          content: '당신은 대화 내용을 요약하고 주요 키워드를 추출하는 assistant입니다. 요약은 3-5문장으로, 키워드는 최대 5개까지 추출해주세요. JSON 형식으로 응답해주세요.'
+          content: '당신은 대화 내용을 요약하고, 대표 제목(title)과 주요 키워드를 추출하는 assistant입니다. 반드시 다음 JSON 형식으로만 응답하세요: {"title": "대표 제목", "summary": "요약 내용...", "keywords": ["키워드1", ...]}. title은 대화의 핵심을 한 문장으로 요약한 대표 제목이어야 합니다. summary는 3-5문장, keywords는 최대 5개.'
         },
         {
           role: 'user',
-          content: `제목: "${title}"\n\n다음 대화 내용을 요약하고, 관련 키워드를 추출해주세요. JSON 형식으로 응답해야 합니다. 다음 형식으로 응답하세요: {"summary": "요약 내용...", "keywords": ["키워드1", "키워드2", ...]}:\n\n${conversationText}`
+          content: `제목: "${title}"\n\n다음 대화 내용을 요약하고, 대표 제목(title)과 관련 키워드를 추출해주세요. 반드시 다음 JSON 형식으로만 응답하세요: {"title": "대표 제목", "summary": "요약 내용...", "keywords": ["키워드1", ...]}\n\n${conversationText}`
         }
       ],
       temperature: 0.5,
@@ -56,6 +57,7 @@ export async function summarizeConversation(
       
       const parsedContent = JSON.parse(content);
       return {
+        title: parsedContent.title || title || '',
         summary: parsedContent.summary || '요약을 생성할 수 없습니다.',
         keywords: Array.isArray(parsedContent.keywords) ? parsedContent.keywords : [],
         modelUsed: MODEL
@@ -64,6 +66,7 @@ export async function summarizeConversation(
       console.error('JSON 파싱 오류:', parseError);
       console.log('파싱 실패한 내용:', response.choices[0]?.message?.content);
       return {
+        title,
         summary: '요약을 생성할 수 없습니다.',
         keywords: [],
         modelUsed: MODEL
@@ -72,6 +75,7 @@ export async function summarizeConversation(
   } catch (error: any) {
     console.error('대화 요약 중 오류 발생:', error);
     return {
+      title,
       summary: '요약을 생성할 수 없습니다.',
       keywords: [],
       modelUsed: MODEL
@@ -101,6 +105,7 @@ export async function summarizeLongConversation(
     // 각 파트별로 요약 생성
     const partSummaries: string[] = [];
     let allKeywords: string[] = [];
+    let allTitles: string[] = [];
     
     for (let i = 0; i < messageParts.length; i++) {
       try {
@@ -109,6 +114,7 @@ export async function summarizeLongConversation(
           messageParts[i]
         );
         partSummaries.push(`파트 ${i+1}: ${result.summary}`);
+        if (result.title) allTitles.push(result.title);
         
         // 키워드 수집
         if (Array.isArray(result.keywords)) {
@@ -126,11 +132,11 @@ export async function summarizeLongConversation(
       messages: [
         {
           role: 'system',
-          content: '여러 대화 요약을 하나의 통합된 요약으로 만들고, 가장 중요한 키워드를 5개 이내로 추출해주세요. JSON 형식으로 응답해주세요.'
+          content: '여러 대화 요약을 하나의 통합된 요약과 대표 제목(title)으로 만들고, 가장 중요한 키워드를 5개 이내로 추출해주세요. 반드시 다음 JSON 형식으로만 응답하세요: {"title": "대표 제목", "summary": "요약 내용...", "keywords": ["키워드1", ...]}'
         },
         {
           role: 'user',
-          content: `다음은 긴 대화를 나눈 부분별 요약입니다. 이들을 결합하여 전체 대화의 핵심을 담은 통합 요약을 5문장 이내로 작성하고, 가장 중요한 키워드 5개를 추출해주세요. JSON 형식으로 응답해야 합니다. {"summary": "요약 내용...", "keywords": ["키워드1", "키워드2", ...]} 형식으로 응답하세요:\n\n${partSummaries.join('\n\n')}`
+          content: `다음은 긴 대화를 나눈 부분별 요약입니다. 이들을 결합하여 전체 대화의 핵심을 담은 대표 제목(title)과 통합 요약을 5문장 이내로 작성하고, 가장 중요한 키워드 5개를 추출해주세요. 반드시 다음 JSON 형식으로만 응답하세요: {"title": "대표 제목", "summary": "요약 내용...", "keywords": ["키워드1", ...]}\n\n${partSummaries.join('\n\n')}`
         }
       ],
       temperature: 0.5,
@@ -144,6 +150,7 @@ export async function summarizeLongConversation(
       
       const parsedContent = JSON.parse(content);
       return {
+        title: parsedContent.title || allTitles[0] || title || '',
         summary: parsedContent.summary || '요약을 생성할 수 없습니다.',
         keywords: Array.isArray(parsedContent.keywords) ? parsedContent.keywords : allKeywords,
         modelUsed: MODEL
@@ -156,6 +163,7 @@ export async function summarizeLongConversation(
       const uniqueKeywords = Array.from(new Set(allKeywords)).slice(0, 5);
       
       return {
+        title: allTitles[0] || title || '',
         summary: '요약을 생성할 수 없습니다.',
         keywords: uniqueKeywords,
         modelUsed: MODEL
@@ -164,6 +172,7 @@ export async function summarizeLongConversation(
   } catch (error: any) {
     console.error('긴 대화 요약 중 오류 발생:', error);
     return {
+      title,
       summary: '요약을 생성할 수 없습니다.',
       keywords: [],
       modelUsed: MODEL

@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { getSupabaseClient } from '@/lib/supabase'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function SaveChat() {
   const [url, setUrl] = useState('')
@@ -17,76 +18,61 @@ export default function SaveChat() {
   const [success, setSuccess] = useState(false)
   const [result, setResult] = useState<any>(null)
   const { user } = useAuth()
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(false)
-    setResult(null)
-
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    setResult(null);
     try {
-      console.log(`Submitting URL: ${url}`)
-      
-      // 인증 토큰 가져오기
+      // 인증 토큰 획득
       let authToken = null;
       if (user) {
         try {
           const supabase = getSupabaseClient();
           const { data: { session } } = await supabase.auth.getSession();
           authToken = session?.access_token;
-          console.log('인증 토큰 획득:', authToken ? '성공' : '실패');
-        } catch (authError) {
-          console.log('인증 토큰 획득 실패:', authError);
-        }
+        } catch (authError) {}
       }
-      
       // 헤더 설정
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      
-      // 인증 토큰이 있으면 헤더에 추가
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
-      
       const response = await fetch('/api/rag/conversations', {
         method: 'POST',
         headers,
         body: JSON.stringify({ url }),
-      })
-
-      const data = await response.json()
-      console.log('API response:', data)
-
+      });
+      const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || '대화 처리 중 오류가 발생했습니다.')
+        throw new Error(data.error || '대화 처리 중 오류가 발생했습니다.');
       }
-
-      setSuccess(true)
-      
-      // 중복 URL 처리
+      setSuccess(true);
+      setResult(data);
+      setUrl('');
       if (data.duplicate) {
-        // 중복 URL인 경우 성공 페이지로 리다이렉트
-        console.log('중복 URL 감지, 성공 페이지로 리다이렉트:', data);
         window.location.href = `/success?id=${data.data?.id || ''}&duplicate=true`;
       } else {
-        setResult(data)
-        
-        // 성공 페이지로 리다이렉트
-        console.log('저장 성공, 성공 페이지로 리다이렉트:', data);
-        window.location.href = `/success?id=${data.data?.id || ''}`;
+        toast({
+          title: '성공!',
+          description: '대화가 성공적으로 저장되었습니다!',
+          variant: 'success',
+        });
+        setTimeout(() => {
+          window.location.href = `/success?id=${data.data?.id || ''}`;
+        }, 1000);
       }
-      
-      setUrl('')
     } catch (err) {
-      console.error('Error:', err)
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.')
+      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
@@ -146,7 +132,6 @@ export default function SaveChat() {
             className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-gray-700 max-w-2xl mx-auto"
           >
             <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-gray-800 dark:text-white">대화 저장하기</h2>
-            
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div className="space-y-1 sm:space-y-2">
                 <label htmlFor="url" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -197,16 +182,6 @@ export default function SaveChat() {
               {error && (
                 <div className="p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg text-xs sm:text-sm">
                   {error}
-                </div>
-              )}
-              
-              {success && !error && result && (
-                <div className="p-3 bg-green-100 border border-green-200 text-green-700 rounded-lg text-xs sm:text-sm">
-                  {result.duplicate ? (
-                    <p>이미 저장된 대화입니다.</p>
-                  ) : (
-                    <p>대화가 성공적으로 저장되었습니다.</p>
-                  )}
                 </div>
               )}
             </form>
