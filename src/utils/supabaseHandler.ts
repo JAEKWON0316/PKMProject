@@ -104,7 +104,8 @@ export async function insertChatSession({
   messages,
   metadata = {},
   skipDuplicateCheck = false,
-  userId = null
+  userId = null,
+  supabaseClient = undefined
 }: {
   title: string;
   url: string;
@@ -113,6 +114,7 @@ export async function insertChatSession({
   metadata?: Record<string, any>;
   skipDuplicateCheck?: boolean;
   userId?: string | null;
+  supabaseClient?: SupabaseClient;
 }) {
   try {
     // URL 중복 확인 (skipDuplicateCheck가 false일 때만)
@@ -176,7 +178,8 @@ export async function insertChatSession({
     const embedding = await getEmbedding(sanitizedSummary);
     
     // 세션 데이터 삽입 (user_id 포함)
-    const { data, error } = await getSupabase()
+    const supabase = supabaseClient || getSupabase();
+    const { data, error } = await supabase
       .from('chat_sessions')
       .insert({
         title: sanitizedTitle,

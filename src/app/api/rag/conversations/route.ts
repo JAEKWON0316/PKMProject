@@ -22,6 +22,7 @@ export async function POST(request: Request): Promise<Response> {
     
     // 현재 로그인한 사용자 정보 가져오기
     let currentUserId: string | null = null;
+    let supabase: any = null; // 추가: 인증된 supabase 인스턴스 저장
     try {
       // 요청 헤더에서 Authorization 토큰 가져오기
       const authHeader = request.headers.get('authorization');
@@ -29,10 +30,17 @@ export async function POST(request: Request): Promise<Response> {
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7); // 'Bearer ' 제거
         
-        // 토큰으로 Supabase 클라이언트 생성
-        const supabase = createClient(
+        // 토큰으로 Supabase 클라이언트 생성 (인증 context 반영)
+        supabase = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          }
         );
         
         // 토큰으로 사용자 정보 가져오기
@@ -50,10 +58,12 @@ export async function POST(request: Request): Promise<Response> {
         }
       } else {
         console.log('Authorization 헤더가 없음 (비로그인 사용자)');
+        supabase = null;
         currentUserId = null;
       }
     } catch (authError) {
       console.log('사용자 인증 정보 가져오기 실패 (비로그인 사용자로 처리):', authError);
+      supabase = null;
       currentUserId = null;
     }
     
@@ -200,7 +210,8 @@ export async function POST(request: Request): Promise<Response> {
           createdAt: new Date().toISOString()
         },
         skipDuplicateCheck: true, // 이미 위에서 중복 체크를 했으므로 건너뜀
-        userId: currentUserId
+        userId: currentUserId,
+        supabaseClient: supabase // 인증된 인스턴스 전달 (비로그인 시 null)
       });
       
       console.log(`Supabase 세션 저장 완료: ${sessionData.id}`);
