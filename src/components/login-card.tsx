@@ -194,10 +194,6 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
     if (result.success) {
       // 로그인 성공 시 리다이렉트 처리
       if (result.user && (otpMode || usePassword)) {
-        // 로딩 상태 유지하면서 완료 메시지 표시
-        setSuccessMessage("인증 완료! 이동 중...")
-        setErrorMessage("")
-        
         // 짧은 딜레이 후 폼 닫고 리다이렉트
         setTimeout(() => {
           onClose?.()
@@ -430,6 +426,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
         const isEmailValid = validateEmail(email)
         if (isEmailValid && password) {
           const result = await signInWithPassword(email, password)
+          
+          // 비밀번호 로그인 성공 시 바로 처리 (OTP 단계 건너뛰기)
           await showResult(result)
           // 로그인 성공 시 로딩 상태 유지 (showResult에서 처리)
           if (result.success && result.user) return
@@ -623,8 +621,8 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
           </>
         )}
 
-        {/* 비밀번호 입력 (비밀번호 모드에서) */}
-        {usePassword && !otpMode && !passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && (
+        {/* 비밀번호 입력 (비밀번호 모드 또는 가입 모드에서) */}
+        {(usePassword || signupMode) && !otpMode && !passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && (
           <div className="relative">
             <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호</label>
             <Input
@@ -646,7 +644,7 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
 
         {/* 비밀번호 확인 입력 (가입 모드에서만) */}
         {signupMode && !otpMode && (
-          <div className="relative">
+          <div className="relative mt-4">
             <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호 확인</label>
             <Input
               type="password"

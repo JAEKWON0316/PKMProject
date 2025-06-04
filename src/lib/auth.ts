@@ -10,6 +10,8 @@ export interface AuthResult {
   user?: any
   error?: string
   isNewUser?: boolean  // 새 사용자인지 기존 사용자인지 구분
+  otpSent?: boolean    // OTP 코드 발송 여부
+  email?: string       // 이메일 주소
 }
 
 // 새로운 OTP 회원가입 데이터 타입
@@ -100,51 +102,37 @@ export async function verifyOtpCode(email: string, token: string): Promise<AuthR
   }
 }
 
-// 3. 이메일/비밀번호 로그인 (기존 함수를 커스텀 로그인으로 교체)
+// 3. 이메일/비밀번호 로그인
 export async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
-  // 먼저 커스텀 비밀번호 로그인 시도
-  const customResult = await signInWithCustomPassword(email, password)
-  
-  // 커스텀 로그인이 실패하고 비밀번호가 설정되지 않은 경우, Supabase 기본 로그인 시도
-  if (!customResult.success && customResult.error === 'password_not_set') {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
+  try {
+    // 먼저 Supabase 기본 비밀번호 로그인 시도
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
 
-      if (error) {
-        let message = '로그인에 실패했습니다.'
-        
-        if (error.message.includes('Invalid login credentials')) {
-          message = '이메일 또는 비밀번호가 올바르지 않습니다.'
-        } else if (error.message.includes('Email not confirmed')) {
-          message = '이메일 인증이 필요합니다. 이메일을 확인해주세요.'
-        }
+    if (error) {
+      // 기본 로그인 실패 시 커스텀 로그인 시도 (호환성)
+      console.log('기본 로그인 실패, 커스텀 로그인 시도:', error.message)
+      
+      const customResult = await signInWithCustomPassword(email, password)
+      return customResult
+    }
 
-        return {
-          success: false,
-          message,
-          error: error.message
-        }
-      }
-
-      return {
-        success: true,
-        message: '로그인 성공!',
-        user: data.user
-      }
-    } catch (error) {
-      console.error('Supabase 기본 로그인 오류:', error)
-      return {
-        success: false,
-        message: '네트워크 오류가 발생했습니다.',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+    console.log('✅ 기본 비밀번호 로그인 성공:', data.user?.email)
+    return {
+      success: true,
+      message: '로그인 성공!',
+      user: data.user
+    }
+  } catch (error) {
+    console.error('비밀번호 로그인 오류:', error)
+    return {
+      success: false,
+      message: '네트워크 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
-
-  return customResult
 }
 
 // 4. Google OAuth 로그인
@@ -247,7 +235,28 @@ export async function completeSignUpWithOtp(email: string, token: string): Promi
       return otpResult
     }
 
-    // OTP 인증 성공 시 비밀번호 해시화하여 DB에 저장
+    // OTP 인증 성공 시 Supabase auth에 비밀번호도 설정
+    try {
+      // 이미 로그인된 상태이므로 현재 사용자의 비밀번호를 업데이트
+      const { data: updateResult, error: updateError } = await supabase.auth.updateUser({
+        password: signUpData.password,
+        data: {
+          full_name: signUpData.fullName
+        }
+      })
+
+      if (updateError) {
+        console.error('Auth 비밀번호 업데이트 오류:', updateError)
+        // 실패해도 계속 진행 (OTP 로그인은 성공했으므로)
+      } else {
+        console.log('✅ Auth 테이블에 비밀번호 업데이트 완료')
+      }
+    } catch (authError) {
+      console.error('Auth 업데이트 실패:', authError)
+      // 실패해도 계속 진행
+    }
+
+    // 비밀번호 해시화하여 profiles 테이블에도 저장 (백업용)
     const saltRounds = 12
     const passwordHash = await bcrypt.hash(signUpData.password, saltRounds)
 
@@ -307,13 +316,87 @@ export async function signInWithCustomPassword(email: string, password: string):
       }
     }
 
-    // API에서 받은 authUrl로 세션 생성
-    if (result.authUrl) {
-      window.location.href = result.authUrl
+    // 직접 세션이 있는 경우 (password_direct)
+    if (result.loginMethod === 'password_direct' && result.session) {
+      console.log('🔐 직접 비밀번호 로그인: 세션 설정')
+      
+      const { data, error } = await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token
+      })
+
+      if (error) {
+        console.error('❌ 세션 설정 실패:', error)
+        return {
+          success: false,
+          message: '세션 설정에 실패했습니다.',
+          error: error.message
+        }
+      }
+
+      console.log('✅ 비밀번호 로그인 성공:', data.user?.email)
       return {
         success: true,
-        message: '로그인 처리 중...',
-        user: result.user
+        message: '로그인 성공!',
+        user: data.user
+      }
+    }
+
+    // 비밀번호 검증 완료된 경우 - OTP 없이 바로 성공 처리
+    if (result.loginMethod === 'password_verified') {
+      console.log('🔐 비밀번호 검증 완료 - 바로 로그인 처리')
+      
+      // 수동 인증이 필요한 경우
+      if (result.requiresManualAuth && result.user) {
+        // 임시로 세션 없이 사용자 상태만 설정
+        console.log('✅ 수동 인증으로 로그인 상태 설정')
+        
+        // localStorage에 임시 사용자 정보 저장 (AuthContext에서 읽을 수 있도록)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('temp_auth_user', JSON.stringify(result.user))
+          localStorage.setItem('temp_auth_verified', 'true')
+        }
+        
+        return {
+          success: true,
+          message: '로그인 성공!',
+          user: result.user
+        }
+      }
+      
+      // 사용자 정보가 있으면 바로 성공으로 처리
+      if (result.user) {
+        return {
+          success: true,
+          message: '로그인 성공!',
+          user: result.user
+        }
+      }
+    }
+
+    // 기존 세션 토큰 방식 (호환성)
+    if (result.session?.access_token && result.session?.refresh_token) {
+      console.log('🔐 비밀번호 로그인: 세션 설정')
+      
+      const { data, error } = await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token
+      })
+
+      if (error) {
+        console.error('❌ 세션 설정 실패:', error)
+        return {
+          success: false,
+          message: '세션 설정에 실패했습니다.',
+          error: error.message
+        }
+      }
+
+      console.log('✅ 비밀번호 로그인 성공:', data.user?.email)
+      return {
+        success: true,
+        message: result.message,
+        user: data.user
       }
     }
 
@@ -323,7 +406,7 @@ export async function signInWithCustomPassword(email: string, password: string):
       user: result.user
     }
   } catch (error) {
-    console.error('커스텀 비밀번호 로그인 오류:', error)
+    console.error('비밀번호 로그인 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',

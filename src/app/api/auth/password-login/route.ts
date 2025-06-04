@@ -5,13 +5,19 @@ import bcrypt from 'bcryptjs'
 // 서버용 Supabase 클라이언트 (service role key 사용)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!, // 환경변수 이름 수정
+  process.env.SUPABASE_SERVICE_KEY!,
   {
     auth: {
       autoRefreshToken: false,
       persistSession: false
     }
   }
+)
+
+// 클라이언트용 Supabase 클라이언트
+const supabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
 export async function POST(request: NextRequest) {
@@ -60,33 +66,51 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. 서버에서 사용자 세션 생성
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-      }
-    })
+    // 4. 비밀번호가 맞으면 OTP 없이 인증된 상태로 사용자 정보 반환
+    try {
+      // auth 테이블에서 사용자 정보 가져오기
+      const { data: authUser, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id)
+      
+      if (userError) {
+        console.error('사용자 정보 조회 오류:', userError)
+        // auth에서 못 찾으면 profiles 데이터로 임시 사용자 객체 생성
+        const tempUser = {
+          id: profile.id,
+          email: profile.email,
+          user_metadata: {
+            full_name: profile.full_name
+          },
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
 
-    if (sessionError) {
-      console.error('세션 생성 오류:', sessionError)
+        return NextResponse.json({
+          success: true,
+          message: '비밀번호 인증 완료!',
+          loginMethod: 'password_verified',
+          requiresManualAuth: true, // 수동 인증 필요 플래그
+          user: tempUser,
+          email: profile.email
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '비밀번호 인증 완료!',
+        loginMethod: 'password_verified',
+        requiresManualAuth: true, // 수동 인증 필요 플래그
+        user: authUser.user,
+        email: profile.email
+      })
+
+    } catch (authError) {
+      console.error('인증 처리 실패:', authError)
       return NextResponse.json(
         { success: false, message: '로그인 처리 중 오류가 발생했습니다.' },
         { status: 500 }
       )
     }
-
-    return NextResponse.json({
-      success: true,
-      message: '로그인 성공!',
-      user: {
-        id: profile.id,
-        email: profile.email,
-        full_name: profile.full_name
-      },
-      authUrl: sessionData.properties?.action_link // 클라이언트에서 이 URL로 리다이렉트
-    })
 
   } catch (error) {
     console.error('비밀번호 로그인 API 오류:', error)

@@ -45,11 +45,13 @@ export interface ActivityTrend {
 
 export interface RecentActivity {
   id: string;
+  sessionId: string;
   title: string;
   category: string;
   messageCount: number;
   createdAt: string;
   summary?: string;
+  isFavorite: boolean;
 }
 
 /**
@@ -230,11 +232,13 @@ export function getRecentActivity(sessions: Partial<ChatSession>[], limit: numbe
 
   return recentSessions.map(session => ({
     id: session.id || '',
+    sessionId: session.id || '',
     title: session.title || '제목 없음',
     category: session.metadata?.mainCategory || '기타',
     messageCount: session.metadata?.messageCount || 0,
     createdAt: session.created_at || '',
-    summary: session.summary || ''
+    summary: session.summary || '',
+    isFavorite: session.metadata?.favorite || false
   }));
 }
 

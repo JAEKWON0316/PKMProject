@@ -62,15 +62,22 @@ export interface ChatChunk {
 }
 
 export interface ChatSession {
-  id?: string;
-  title?: string;
-  url?: string;
-  summary?: string;
-  messages?: ChatMessage[];
-  metadata?: Record<string, any>;
-  created_at?: string;
-  embedding?: number[];
-  user_id?: string | null;
+  id: string;
+  title: string;
+  url: string;
+  summary: string;
+  messages: ChatMessage[];
+  created_at: string;
+  updated_at?: string;
+  user_id?: string;
+  metadata?: {
+    favorite?: boolean;
+    tags?: string[];
+    mainCategory?: string;
+    subCategory?: string;
+    messageCount?: number;
+    [key: string]: any;
+  };
 }
 
 export interface RagSource {

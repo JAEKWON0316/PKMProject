@@ -26,6 +26,7 @@ import {
   Search,
   Settings,
   Shield,
+  Star,
   Sun,
   Terminal,
   Wifi,
@@ -47,6 +48,7 @@ import { LoginModal } from "@/components/login-modal"
 // AuthContext 및 통계 함수 import
 import { useAuth } from "@/contexts/AuthContext"
 import { getAllChatSessionsLightweight } from "@/utils/supabaseHandler"
+import { getSupabaseClient } from "@/lib/supabase"
 import { 
   calculateUserStats, 
   formatStatsForDashboard,
@@ -708,11 +710,14 @@ export default function DashboardClient() {
                       data.recentActivity.map((activity, index) => (
                         <RecentChatItem
                           key={activity.id}
+                          sessionId={activity.sessionId}
                           title={activity.title}
                           category={activity.category}
                           time={new Date(activity.createdAt).toLocaleString('ko-KR')}
                           messageCount={activity.messageCount}
                           summary={activity.summary}
+                          isFavorite={activity.isFavorite}
+                          onFavoriteToggle={() => handleRefresh()}
                         />
                       ))
                     ) : (
@@ -1232,18 +1237,86 @@ function Check(props: React.ComponentProps<typeof Shield>) {
 
 // Recent chat item component
 function RecentChatItem({
+  sessionId,
   title,
   category,
   time,
   messageCount,
   summary,
+  isFavorite = false,
+  onFavoriteToggle,
 }: {
+  sessionId?: string
   title: string
   category: string
   time: string
   messageCount: number
   summary?: string
+  isFavorite?: boolean
+  onFavoriteToggle?: () => void
 }) {
+  const { user, isAuthenticated } = useAuth()
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [favoriteState, setFavoriteState] = useState(isFavorite)
+
+  // 즐겨찾기 토글 핸들러
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    // 이벤트 전파 완전 차단
+    e.preventDefault()
+    e.stopPropagation()
+    e.nativeEvent.stopImmediatePropagation()
+    
+    if (!sessionId || isUpdating) {
+      return
+    }
+
+    const newFavoriteState = !favoriteState
+    setIsUpdating(true)
+    
+    // Optimistic update
+    setFavoriteState(newFavoriteState)
+    
+    try {
+      // Supabase 클라이언트를 직접 사용하여 업데이트
+      const supabase = getSupabaseClient()
+      
+      if (newFavoriteState) {
+        // 즐겨찾기 추가
+        const { error } = await supabase
+          .from('user_favorites')
+          .insert({
+            user_id: user?.id,
+            session_id: sessionId
+          })
+
+        if (error && error.code !== '23505') { // unique constraint violation이 아닌 경우만 에러로 처리
+          throw new Error(`즐겨찾기 추가 실패: ${error.message}`)
+        }
+      } else {
+        // 즐겨찾기 제거
+        const { error } = await supabase
+          .from('user_favorites')
+          .delete()
+          .eq('user_id', user?.id)
+          .eq('session_id', sessionId)
+
+        if (error) {
+          throw new Error(`즐겨찾기 제거 실패: ${error.message}`)
+        }
+      }
+      
+      // 부모 컴포넌트에 데이터 새로고침 알림
+      onFavoriteToggle?.()
+      
+    } catch (error) {
+      console.error('즐겨찾기 토글 에러:', error)
+      // 실패 시 상태 롤백
+      setFavoriteState(!newFavoriteState)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   return (
     <div className="bg-slate-800/30 rounded-lg border border-slate-700/50 p-4 hover:bg-slate-800/50 transition-colors">
       <div className="flex items-start justify-between mb-2">
@@ -1259,8 +1332,30 @@ function RecentChatItem({
             <span>{messageCount}개 메시지</span>
           </div>
         </div>
-        <div className="text-xs text-slate-500 ml-4 flex-shrink-0">
-          {time}
+        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+          <div className="text-xs text-slate-500">
+            {time}
+          </div>
+          {/* 즐겨찾기 버튼 */}
+          {sessionId && (
+            <button
+              onClick={handleFavoriteToggle}
+              disabled={isUpdating}
+              className={`p-1 rounded-sm transition-all duration-200 hover:scale-125 hover:bg-slate-600/50 cursor-pointer ${
+                isUpdating ? 'animate-pulse' : ''
+              }`}
+              title={favoriteState ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+              style={{ zIndex: 10 }}
+            >
+              <Star 
+                className={`w-4 h-4 transition-colors ${
+                  favoriteState 
+                    ? 'text-amber-400 fill-amber-400' 
+                    : 'text-gray-400 hover:text-amber-400'
+                }`} 
+              />
+            </button>
+          )}
         </div>
       </div>
       {summary && (

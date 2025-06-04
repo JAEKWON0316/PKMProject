@@ -541,7 +541,20 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
 
     const sessionsData = sessions || [];
     
-    // 각 세션의 메시지 개수 계산 (클라이언트에서 직접 계산)
+    // 사용자별 즐겨찾기 정보 조회 (로그인한 사용자가 있는 경우)
+    let userFavorites: string[] = [];
+    if (currentUserId) {
+      const { data: favorites, error: favError } = await getSupabase()
+        .from('user_favorites')
+        .select('session_id')
+        .eq('user_id', currentUserId);
+      
+      if (!favError && favorites) {
+        userFavorites = favorites.map(f => f.session_id);
+      }
+    }
+    
+    // 각 세션의 메시지 개수 계산 및 즐겨찾기 정보 추가
     const sessionWithMessageCounts = sessionsData.map((session) => {
       let messageCount = 0;
       
@@ -558,14 +571,19 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
         messageCount = 0;
       }
 
-      // messages 필드를 제거하고 messageCount를 메타데이터에 추가
+      // messages 필드를 제거하고 messageCount와 즐겨찾기 정보를 메타데이터에 추가
       const { messages: _, ...sessionWithoutMessages } = session;
+      
+      // 현재 사용자가 이 세션을 즐겨찾기했는지 확인
+      const isFavorited = userFavorites.includes(session.id);
       
       return {
         ...sessionWithoutMessages,
+        is_favorite: isFavorited, // 타입 호환성을 위해 추가
         metadata: {
           ...session.metadata,
-          messageCount
+          messageCount,
+          favorite: isFavorited // 기존 코드 호환성을 위해 유지
         }
       };
     });
@@ -583,6 +601,12 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
 
     if (currentUserId) {
       categoryCounts['내 대화'] = userChatCount;
+      
+      // 즐겨찾기 수 계산 (현재 사용자의 즐겨찾기만)
+      const favoritesCount = sessionWithMessageCounts.filter(session => 
+        session.metadata?.favorite === true
+      ).length;
+      categoryCounts['즐겨찾기'] = favoritesCount;
     }
 
     // 기존 카테고리 정보 활용 (복잡한 정규식 연산 회피)
@@ -748,90 +772,41 @@ export async function toggleChatSessionFavorite(
   error?: string;
 }> {
   try {
-    console.log(`세션 ${sessionId}의 즐겨찾기 상태를 ${favorite}로 변경 시도 (사용자: ${userId})`);
-    
-    // 입력 유효성 검사
-    if (!sessionId || !userId) {
-      return {
-        success: false,
-        error: '세션 ID와 사용자 ID가 필요합니다.'
-      };
+    if (favorite) {
+      // 즐겨찾기 추가
+      const { error } = await getSupabase()
+        .from('user_favorites')
+        .insert({
+          user_id: userId,
+          session_id: sessionId
+        });
+      
+      if (error) {
+        if (error.code === '23505') { // unique constraint violation
+          // 이미 즐겨찾기되어 있으면 성공으로 처리
+          return { success: true, favorite: true };
+        }
+        throw error;
+      }
+    } else {
+      // 즐겨찾기 제거
+      const { error } = await getSupabase()
+        .from('user_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('session_id', sessionId);
+      
+      if (error) {
+        throw error;
+      }
     }
-    
-    if (typeof favorite !== 'boolean') {
-      return {
-        success: false,
-        error: 'favorite 값은 boolean 타입이어야 합니다.'
-      };
-    }
-    
-    // 세션 존재 및 소유권 확인
-    const { data: session, error: sessionError } = await getSupabase()
-      .from('chat_sessions')
-      .select('id, user_id, metadata')
-      .eq('id', sessionId)
-      .single();
-    
-    if (sessionError) {
-      console.error(`세션 조회 오류 (${sessionId}):`, sessionError);
-      return {
-        success: false,
-        error: '세션을 찾을 수 없습니다.'
-      };
-    }
-    
-    if (!session) {
-      return {
-        success: false,
-        error: '존재하지 않는 세션입니다.'
-      };
-    }
-    
-    // 세션 소유자 확인 (RLS 추가 보안)
-    if (session.user_id !== userId) {
-      console.warn(`권한 없는 즐겨찾기 변경 시도: 세션 ${sessionId}, 요청자 ${userId}, 소유자 ${session.user_id}`);
-      return {
-        success: false,
-        error: '이 대화를 수정할 권한이 없습니다.'
-      };
-    }
-    
-    // 기존 메타데이터 보존하며 favorite 필드만 업데이트
-    const updatedMetadata = {
-      ...session.metadata,
-      favorite,
-      favoriteUpdatedAt: new Date().toISOString() // 즐겨찾기 변경 시점 기록
-    };
-    
-    // 메타데이터 업데이트
-    const { error: updateError } = await getSupabase()
-      .from('chat_sessions')
-      .update({
-        metadata: updatedMetadata
-      })
-      .eq('id', sessionId)
-      .eq('user_id', userId); // 추가 보안 확인
-    
-    if (updateError) {
-      console.error(`즐겨찾기 업데이트 오류 (${sessionId}):`, updateError);
-      return {
-        success: false,
-        error: '즐겨찾기 상태 업데이트에 실패했습니다.'
-      };
-    }
-    
-    console.log(`세션 ${sessionId}의 즐겨찾기 상태를 ${favorite}로 업데이트 완료`);
-    
-    return {
-      success: true,
-      favorite
-    };
-    
+
+    return { success: true, favorite };
   } catch (error) {
     console.error('toggleChatSessionFavorite 오류:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.' 
     };
   }
 } 

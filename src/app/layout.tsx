@@ -27,13 +27,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ko_KR",
-    url: "https://pkmai.co.kr",
+    url: "https://pkm-project-jaekwon0316s-projects.vercel.app/",
     title: "PKM AI - AI 지식관리 플랫폼",
     description: "PKM AI와 함께 더 스마트하게 대화하고, 지식을 관리하세요. AI 기반 개인 지식 관리 시스템으로 대화를 저장하고 검색할 수 있습니다.",
     siteName: "PKM AI",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://pkm-project-jaekwon0316s-projects.vercel.app/og-image.png",
         width: 1200,
         height: 630,
         alt: "PKM AI - AI 지식관리 플랫폼",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "PKM AI - AI 지식관리 플랫폼",
     description: "PKM AI와 함께 더 스마트하게 대화하고, 지식을 관리하세요.",
-    images: ["/og-image.png"],
+    images: ["https://pkm-project-jaekwon0316s-projects.vercel.app/og-image.png"],
   },
   robots: {
     index: true,

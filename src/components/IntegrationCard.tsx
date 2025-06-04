@@ -5,10 +5,14 @@ import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { ko } from "date-fns/locale"
 import { ChatSession } from "@/types"
+import { useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
+import { getSupabaseClient } from "@/lib/supabase"
 
 type IntegrationCardProps = {
   integration: Integration & { url?: string; chatSession?: Partial<ChatSession> }
   categoryCount?: number
+  onFavoriteToggle?: () => void
 }
 
 // 카테고리별 색상 매핑
@@ -40,7 +44,13 @@ const categoryColors: Record<string, string> = {
   "Social Media": "#8b5cf6"
 }
 
-export default function IntegrationCard({ integration, categoryCount }: IntegrationCardProps) {
+export default function IntegrationCard({ integration, categoryCount, onFavoriteToggle }: IntegrationCardProps) {
+  const { user, isAuthenticated } = useAuth()
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [favoriteState, setFavoriteState] = useState(
+    integration.chatSession?.metadata?.favorite || false
+  )
+  
   // Icon 타입을 LucideIcon으로 명시적으로 지정합니다
   const Icon = integration.icon as React.ElementType
   const chatSession = integration.chatSession
@@ -52,7 +62,6 @@ export default function IntegrationCard({ integration, categoryCount }: Integrat
   const subCategory = chatSession?.metadata?.subCategory || ""
   const created_at = chatSession?.created_at
   const tags = (chatSession?.metadata?.tags || []) as string[]
-  const isFavorite = chatSession?.metadata?.favorite || false
   const messageCount = chatSession?.metadata?.messageCount || "?"
   
   // URL 구성
@@ -65,6 +74,127 @@ export default function IntegrationCard({ integration, categoryCount }: Integrat
   const formattedDate = created_at 
     ? formatDistanceToNow(new Date(created_at), { addSuffix: true, locale: ko }) 
     : null
+
+  // 즐겨찾기 토글 핸들러
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    // 이벤트 전파 완전 차단
+    e.preventDefault()
+    e.stopPropagation()
+    e.nativeEvent.stopImmediatePropagation()
+    
+    console.log('🔄 즐겨찾기 토글 시작:', {
+      isAuthenticated,
+      chatSessionId: chatSession?.id,
+      chatSessionUserId: chatSession?.user_id, // 세션 소유자 ID
+      currentUserId: user?.id, // 현재 로그인한 사용자 ID
+      currentFavorite: favoriteState,
+      isUpdating
+    })
+    
+    // 로그인하지 않은 경우 알림 표시
+    if (!isAuthenticated) {
+      alert('즐겨찾기 기능은 로그인 후 이용할 수 있습니다.')
+      return
+    }
+    
+    if (!chatSession?.id || isUpdating) {
+      console.warn('❌ 즐겨찾기 토글 조건 불충족:', {
+        chatSessionId: chatSession?.id,
+        isUpdating
+      })
+      return
+    }
+
+    const newFavoriteState = !favoriteState
+    setIsUpdating(true)
+    
+    console.log('📝 즐겨찾기 상태 변경:', {
+      from: favoriteState,
+      to: newFavoriteState,
+      sessionId: chatSession.id,
+      sessionOwnerId: chatSession.user_id,
+      currentUserId: user?.id
+    })
+    
+    // Optimistic update
+    setFavoriteState(newFavoriteState)
+    
+    try {
+      // Supabase 클라이언트를 직접 사용하여 업데이트
+      const supabase = getSupabaseClient()
+      
+      console.log('🔍 Supabase 업데이트 시도:', {
+        sessionId: chatSession.id,
+        currentUserId: user?.id,
+        newFavoriteState,
+        action: newFavoriteState ? 'INSERT' : 'DELETE'
+      })
+      
+      if (newFavoriteState) {
+        // 즐겨찾기 추가
+        const { data, error } = await supabase
+          .from('user_favorites')
+          .insert({
+            user_id: user?.id,
+            session_id: chatSession.id
+          })
+          .select('id')
+
+        if (error) {
+          console.error('❌ 즐겨찾기 추가 에러:', {
+            error,
+            errorCode: error.code,
+            errorMessage: error.message,
+            sessionId: chatSession.id,
+            userId: user?.id
+          })
+          throw new Error(`즐겨찾기 추가 실패: ${error.message}`)
+        }
+        
+        console.log('✅ 즐겨찾기 추가 성공:', {
+          data,
+          sessionId: chatSession.id,
+          userId: user?.id
+        })
+      } else {
+        // 즐겨찾기 제거
+        const { data, error } = await supabase
+          .from('user_favorites')
+          .delete()
+          .eq('user_id', user?.id)
+          .eq('session_id', chatSession.id)
+          .select('id')
+
+        if (error) {
+          console.error('❌ 즐겨찾기 제거 에러:', {
+            error,
+            errorCode: error.code,
+            errorMessage: error.message,
+            sessionId: chatSession.id,
+            userId: user?.id
+          })
+          throw new Error(`즐겨찾기 제거 실패: ${error.message}`)
+        }
+        
+        console.log('✅ 즐겨찾기 제거 성공:', {
+          data,
+          sessionId: chatSession.id,
+          userId: user?.id
+        })
+      }
+      
+      // 부모 컴포넌트에 데이터 새로고침 알림
+      console.log('🔄 부모 컴포넌트 새로고침 요청')
+      onFavoriteToggle?.()
+      
+    } catch (error) {
+      console.error('❌ 즐겨찾기 토글 에러:', error)
+      // 실패 시 상태 롤백
+      setFavoriteState(!newFavoriteState)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   return (
     <Link href={url} className="block h-full">
@@ -139,8 +269,31 @@ export default function IntegrationCard({ integration, categoryCount }: Integrat
                 <MessageSquare className="w-3 h-3 mr-1" />
                 {messageCount}
               </span>
-              {isFavorite && (
-                <Star className="w-3 h-3 text-amber-400" />
+              {/* 즐겨찾기 버튼 - 모든 대화에서 표시 */}
+              {chatSession?.id && (
+                <button
+                  onClick={handleFavoriteToggle}
+                  disabled={isUpdating}
+                  className={`p-1 rounded-sm transition-all duration-200 hover:scale-125 hover:bg-slate-700/50 ${
+                    !isAuthenticated ? 'cursor-pointer opacity-70 hover:opacity-100' : 'cursor-pointer'
+                  } ${isUpdating ? 'animate-pulse' : ''}`}
+                  title={
+                    !isAuthenticated 
+                      ? '즐겨찾기 기능은 로그인 후 이용할 수 있습니다' 
+                      : (favoriteState ? '즐겨찾기 해제' : '즐겨찾기 추가')
+                  }
+                  style={{ zIndex: 10 }}
+                >
+                  <Star 
+                    className={`w-4 h-4 transition-colors ${
+                      !isAuthenticated
+                        ? 'text-gray-500'
+                        : favoriteState 
+                          ? 'text-amber-400 fill-amber-400' 
+                          : 'text-gray-400 hover:text-amber-400'
+                    }`} 
+                  />
+                </button>
               )}
             </div>
           </div>

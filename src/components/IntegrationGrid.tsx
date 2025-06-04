@@ -22,9 +22,10 @@ type IntegrationGridProps = {
   integrations: (Integration & { url?: string })[]
   chatSessions?: Partial<ChatSession>[]
   categoryCount?: number
+  onFavoriteToggle?: () => void
 }
 
-export default function IntegrationGrid({ integrations, chatSessions = [], categoryCount }: IntegrationGridProps) {
+export default function IntegrationGrid({ integrations, chatSessions = [], categoryCount, onFavoriteToggle }: IntegrationGridProps) {
   // 채팅 세션이 제공된 경우 이를 먼저 표시
   if (chatSessions.length > 0) {
     // 각 세션을 임시 Integration 객체로 변환
@@ -51,7 +52,8 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
           <IntegrationCard 
             key={integration.id} 
             integration={integration} 
-            categoryCount={categoryCount} 
+            categoryCount={categoryCount}
+            onFavoriteToggle={onFavoriteToggle}
           />
         ))}
       </div>
@@ -65,7 +67,8 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
         <IntegrationCard 
           key={integration.id} 
           integration={integration} 
-          categoryCount={categoryCount} 
+          categoryCount={categoryCount}
+          onFavoriteToggle={onFavoriteToggle}
         />
       ))}
     </div>

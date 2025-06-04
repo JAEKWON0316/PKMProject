@@ -121,20 +121,42 @@ export default function IntegrationsClient() {
     
     const categories = ['All']
     
-    // 로그인한 사용자에게만 "내 대화" 카테고리 추가
+    // 로그인한 사용자에게만 "내 대화"와 "즐겨찾기" 카테고리 추가
     if (data.isAuthenticated) {
       categories.push('내 대화')
+      categories.push('즐겨찾기')
     }
     
     // 모든 카테고리를 추가 (수가 0인 것도 포함)
     Object.keys(data.categoryCounts).forEach(cat => {
-      if (cat !== 'All' && cat !== '내 대화') {
+      if (cat !== 'All' && cat !== '내 대화' && cat !== '즐겨찾기') {
         categories.push(cat)
       }
     })
     
     return categories
   }, [data])
+
+  // 카테고리별 카운트 계산 (즐겨찾기 포함)
+  const categoryCountsWithFavorites = useMemo(() => {
+    if (!data) return {}
+    
+    const counts = { ...data.categoryCounts }
+    
+    if (data.isAuthenticated && user?.id) {
+      // 내 대화 수 계산
+      const myChatsCount = data.sessions.filter(session => session.user_id === user.id).length
+      counts['내 대화'] = myChatsCount
+      
+      // 즐겨찾기 수 계산
+      const favoritesCount = data.sessions.filter(session => 
+        session.metadata?.favorite === true
+      ).length;
+      counts['즐겨찾기'] = favoritesCount;
+    }
+    
+    return counts
+  }, [data, user?.id])
 
   // 카테고리와 검색어로 세션 필터링
   const filteredSessions = useMemo(() => {
@@ -148,6 +170,8 @@ export default function IntegrationsClient() {
         categoryMatch = true;
       } else if (category === "내 대화") {
         categoryMatch = !!(data.isAuthenticated && user?.id && session.user_id === user.id);
+      } else if (category === "즐겨찾기") {
+        categoryMatch = !!(data.isAuthenticated && user?.id && session.metadata?.favorite === true);
       } else {
         categoryMatch = session.metadata?.mainCategory === category;
       }
@@ -249,7 +273,7 @@ export default function IntegrationsClient() {
               >
                 <span>{cat}</span>
                 <span className="text-xs bg-gray-700 px-2 py-1 rounded-full">
-                  {data?.categoryCounts[cat] || 0}
+                  {categoryCountsWithFavorites[cat] || 0}
                 </span>
               </button>
             ))}
@@ -285,7 +309,7 @@ export default function IntegrationsClient() {
             >
               {mainCategories.map(cat => (
                 <option key={cat} value={cat}>
-                  {cat} ({data?.categoryCounts[cat] || 0})
+                  {cat} ({categoryCountsWithFavorites[cat] || 0})
                 </option>
               ))}
             </select>
@@ -329,6 +353,7 @@ export default function IntegrationsClient() {
               <IntegrationGrid 
                 chatSessions={paginatedSessions}
                 integrations={[]}
+                onFavoriteToggle={handleRefresh}
               />
               {totalPages > 1 && (
                 <div className="mt-6">
