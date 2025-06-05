@@ -12,6 +12,7 @@ export type UserSubscriptionUpsert = {
   status: string;
   current_period_end: Date | null;
   plan_name?: string;
+  email?: string;
 };
 
 export async function upsertUserSubscription({
@@ -21,6 +22,7 @@ export async function upsertUserSubscription({
   status,
   current_period_end,
   plan_name,
+  email,
 }: UserSubscriptionUpsert): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
@@ -33,6 +35,7 @@ export async function upsertUserSubscription({
           status,
           current_period_end,
           plan_name,
+          email,
           updated_at: new Date().toISOString(),
         },
       ], { onConflict: 'user_id' });

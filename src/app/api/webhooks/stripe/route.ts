@@ -89,6 +89,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       status: subscription?.status ?? 'active',
       current_period_end: currentPeriodEnd,
       plan_name,
+      email: customer.email || undefined,
     });
     if (error) {
       return Response.json({
