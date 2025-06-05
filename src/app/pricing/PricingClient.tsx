@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Check, Zap, Crown, Star, MessageSquare, Database, Search, Users, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useAuth } from "@/contexts/AuthContext"
+import { PRODUCTS } from '@/utils/stripeProducts'
+import { LoginModal } from '@/components/login-modal'
 
 interface PricingPlan {
   id: string
@@ -53,7 +55,7 @@ const pricingPlans: PricingPlan[] = [
     period: "월",
     popular: true,
     icon: Zap,
-    features: [
+    features: [ 
       "무제한 대화 저장",
       "고급 RAG 검색 (무제한)",
       "모든 AI 모델 접근",
@@ -145,20 +147,77 @@ const faqData = [
 ]
 
 export default function PricingClient() {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly")
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const { isAuthenticated } = useAuth()
+  const [loading, setLoading] = useState<string | null>(null)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const { isAuthenticated, user } = useAuth()
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [activePlanName, setActivePlanName] = useState<string | null>(null);
 
-  const handlePlanSelect = (planId: string) => {
-    if (planId === "free") {
-      // 무료 플랜 - 회원가입으로 이동
-      window.location.href = "/"
-    } else if (planId === "enterprise") {
-      // 엔터프라이즈 - 이메일로 문의
-      window.location.href = "mailto:contact@pkmai.co.kr?subject=엔터프라이즈 플랜 문의"
-    } else {
-      // 유료 플랜 - 결제 페이지로 이동 (추후 구현)
-      alert(`${planId} 플랜 결제 기능은 곧 출시됩니다!`)
+  useEffect(() => {
+    async function fetchActiveSub() {
+      if (!user?.id) {
+        setHasActiveSubscription(false);
+        setActivePlanName(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/payments/active-subscription?userId=${user.id}`);
+        const data = await res.json();
+        if (data.success && data.subscription) {
+          setHasActiveSubscription(true);
+          setActivePlanName(data.subscription.plan_name || null);
+        } else {
+          setHasActiveSubscription(false);
+          setActivePlanName(null);
+        }
+      } catch {
+        setHasActiveSubscription(false);
+        setActivePlanName(null);
+      }
+    }
+    fetchActiveSub();
+  }, [user?.id]);
+
+  const handleCheckout = async (planId: string) => {
+    if (planId === 'free') {
+      window.location.href = '/';
+      return;
+    }
+    if (planId === 'enterprise') {
+      window.location.href = 'mailto:contact@pkmai.co.kr?subject=엔터프라이즈 플랜 문의';
+      return;
+    }
+    if (!isAuthenticated) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    // 유료 플랜: productId 결정
+    let productId = '';
+    if (planId === 'pro') {
+      productId = billingPeriod === 'yearly' ? 'pro_yearly' : 'pro_monthly';
+    } else if (planId === 'team') {
+      productId = 'team_monthly'; // 팀은 연간 미지원
+    }
+    if (!productId) return;
+    setLoading(planId);
+    try {
+      const res = await fetch('/api/payments/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, userId: user?.id }),
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || '결제 페이지 이동 실패');
+      }
+    } catch (err) {
+      alert('결제 요청 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(null);
     }
   }
 
@@ -168,6 +227,7 @@ export default function PricingClient() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
       {/* 헤더 섹션 */}
       <div className="container mx-auto px-4 pt-24 pb-16">
         <div className="text-center max-w-3xl mx-auto">
@@ -282,10 +342,14 @@ export default function PricingClient() {
                         : "bg-gray-700 hover:bg-gray-600"
                     }`}
                     variant={plan.popular ? "default" : plan.buttonVariant}
-                    onClick={() => handlePlanSelect(plan.id)}
+                    onClick={() => handleCheckout(plan.id)}
+                    disabled={loading === plan.id || hasActiveSubscription}
                   >
-                    {plan.buttonText}
+                    {hasActiveSubscription ? '이미 구독 중' : (loading === plan.id ? '처리 중...' : plan.buttonText)}
                   </Button>
+                  {hasActiveSubscription && (
+                    <div className="text-sm text-red-400 text-center mb-2">이미 구독 중입니다{activePlanName ? ` (${activePlanName})` : ''}. 구독 기간이 끝난 후 다시 결제할 수 있습니다.</div>
+                  )}
 
                   <div className="space-y-4">
                     <div>
