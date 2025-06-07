@@ -19,7 +19,8 @@ import {
   sendPasswordResetOtp,
   verifyPasswordResetOtp,
   resetPasswordWithOtp,
-  AuthResult 
+  AuthResult,
+  signInWithCustomPassword
 } from "@/lib/auth"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -425,7 +426,9 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
       } else if (usePassword) {
         const isEmailValid = validateEmail(email)
         if (isEmailValid && password) {
-          const result = await signInWithPassword(email, password)
+          // 기존: const result = await signInWithPassword(email, password)
+          // 변경: API 라우트 fetch 기반 함수로 대체
+          const result = await signInWithCustomPassword(email, password)
           
           // 비밀번호 로그인 성공 시 바로 처리 (OTP 단계 건너뛰기)
           await showResult(result)
