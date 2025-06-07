@@ -13,6 +13,7 @@ interface UserProfile {
   avatar_url: string | null
   created_at: string
   updated_at: string
+  role: string | null // 관리자 여부 확인용
 }
 
 interface AuthContextType {

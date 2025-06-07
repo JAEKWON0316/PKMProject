@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Menu, X, LogOut, User } from "lucide-react"
+import { Menu, X, LogOut, User, Shield } from "lucide-react"
 import { useState } from "react"
 import Image from "next/image"
 import { LoginModal } from "./login-modal"
@@ -91,8 +91,19 @@ export default function Navbar() {
               {!loading && (
                 <>
                   {isAuthenticated ? (
-                    // 로그인된 상태
                     <div className="flex items-center space-x-3">
+                      {/* 관리자 버튼 (admin만) */}
+                      {profile?.role === 'admin' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-purple-400 border-purple-500 hover:bg-purple-700/20 hover:text-white transition-colors"
+                          onClick={() => router.push('/admin/dashboard')}
+                        >
+                          <Shield className="h-4 w-4 mr-1" />
+                          관리자
+                        </Button>
+                      )}
                       <div className="flex items-center space-x-2 text-gray-300">
                         <User className="h-4 w-4" />
                         <span className="text-sm">
@@ -157,6 +168,18 @@ export default function Navbar() {
 
           {/* 모바일: 우측 버튼들 */}
           <div className="flex items-center space-x-2">
+            {/* 관리자 버튼 (admin만) */}
+            {!loading && isAuthenticated && profile?.role === 'admin' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-purple-400 border-purple-500 hover:bg-purple-700/20 hover:text-white transition-colors"
+                onClick={() => router.push('/admin/dashboard')}
+              >
+                <Shield className="h-4 w-4 mr-1" />
+                관리자
+              </Button>
+            )}
             {!loading && !isAuthenticated && (
               <Button 
                 size="sm" 
@@ -219,6 +242,18 @@ export default function Navbar() {
                 {isAuthenticated ? (
                   // 모바일: 로그인된 상태
                   <div className="space-y-2">
+                    {/* 관리자 버튼 (admin만) */}
+                    {profile?.role === 'admin' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-purple-400 border-purple-500 hover:bg-purple-700/20 hover:text-white transition-colors"
+                        onClick={() => router.push('/admin/dashboard')}
+                      >
+                        <Shield className="h-4 w-4 mr-1" />
+                        관리자
+                      </Button>
+                    )}
                     <div className="flex items-center space-x-2 py-2 px-3 text-gray-300">
                       <User className="h-4 w-4" />
                       <span className="text-sm">

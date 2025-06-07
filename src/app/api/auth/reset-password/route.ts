@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,31 +59,21 @@ export async function POST(request: NextRequest) {
     }
 
     // 사용자 존재 확인
-    const { data: existingUser, error: userError } = await supabase
+    const { data: user, error: userError } = await supabase
       .from('profiles')
       .select('id, email')
       .eq('email', email)
       .single()
 
-    if (userError || !existingUser) {
+    if (userError || !user) {
       return NextResponse.json({
         success: false,
         message: '사용자를 찾을 수 없습니다.'
       }, { status: 404 })
     }
 
-    // 새 비밀번호 해시화
-    const saltRounds = 12
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds)
-
-    // 데이터베이스에서 비밀번호 업데이트
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ 
-        password_hash: hashedPassword,
-        updated_at: new Date().toISOString()
-      })
-      .eq('email', email)
+    // 대신 supabase.auth.admin.updateUserById로 비밀번호 변경
+    const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, { password: newPassword })
 
     if (updateError) {
       console.error('비밀번호 업데이트 오류:', updateError)

@@ -3,6 +3,8 @@
  * integrations 페이지의 데이터 구조와 일관성 유지
  */
 
+import { getSupabaseAdmin } from '@/lib/supabase';
+
 // 타입 정의 (기존 구조와 일관성 유지)
 export interface ChatSession {
   id: string;
@@ -300,5 +302,35 @@ export function formatStatsForDashboard(stats: UserStats): {
       label: `최근 7일 활동 | ${stats.activityStreak}일 연속`,
       trend: stats.recentActivityCount > 0 ? 'up' : 'down'
     }
+  };
+}
+
+export async function getDashboardStats() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return {
+      totalUsers: 0,
+      totalSubscribers: 0,
+      totalChats: 0,
+    };
+  }
+  // 전체 유저 수
+  const { count: totalUsers } = await supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true });
+  // 구독자 수 (role === 'subscriber' 기준, 필요시 수정)
+  const { count: totalSubscribers } = await supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'subscriber');
+  // 전체 대화 수 (chat_sessions 테이블 기준)
+  const { count: totalChats } = await supabase
+    .from('chat_sessions')
+    .select('id', { count: 'exact', head: true });
+
+  return {
+    totalUsers: totalUsers ?? 0,
+    totalSubscribers: totalSubscribers ?? 0,
+    totalChats: totalChats ?? 0,
   };
 } 

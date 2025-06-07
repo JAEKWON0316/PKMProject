@@ -105,21 +105,18 @@ export async function verifyOtpCode(email: string, token: string): Promise<AuthR
 // 3. 이메일/비밀번호 로그인
 export async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
   try {
-    // 먼저 Supabase 기본 비밀번호 로그인 시도
+    // Supabase 기본 비밀번호 로그인만 시도
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     })
-
     if (error) {
-      // 기본 로그인 실패 시 커스텀 로그인 시도 (호환성)
-      console.log('기본 로그인 실패, 커스텀 로그인 시도:', error.message)
-      
-      const customResult = await signInWithCustomPassword(email, password)
-      return customResult
+      return {
+        success: false,
+        message: '이메일 또는 비밀번호가 올바르지 않습니다.',
+        error: error.message
+      }
     }
-
-    console.log('✅ 기본 비밀번호 로그인 성공:', data.user?.email)
     return {
       success: true,
       message: '로그인 성공!',
@@ -229,60 +226,40 @@ export async function completeSignUpWithOtp(email: string, token: string): Promi
 
     const signUpData = JSON.parse(pendingData) as SignUpData
 
-    // OTP 코드 검증
-    const otpResult = await verifyOtpCode(email, token)
-    if (!otpResult.success) {
-      return otpResult
-    }
-
-    // OTP 인증 성공 시 Supabase auth에 비밀번호도 설정
-    try {
-      // 이미 로그인된 상태이므로 현재 사용자의 비밀번호를 업데이트
-      const { data: updateResult, error: updateError } = await supabase.auth.updateUser({
-        password: signUpData.password,
-        data: {
-          full_name: signUpData.fullName
-        }
-      })
-
-      if (updateError) {
-        console.error('Auth 비밀번호 업데이트 오류:', updateError)
-        // 실패해도 계속 진행 (OTP 로그인은 성공했으므로)
-      } else {
-        console.log('✅ Auth 테이블에 비밀번호 업데이트 완료')
+    // 1. OTP 검증 성공 후 user 정보 획득
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (error || !data.user) {
+      sessionStorage.removeItem('pendingSignUp')
+      return {
+        success: false,
+        message: 'OTP 인증에 실패했습니다.',
+        error: error?.message
       }
-    } catch (authError) {
-      console.error('Auth 업데이트 실패:', authError)
-      // 실패해도 계속 진행
+    }
+    const { user } = data;
+
+    // 2. profiles row 생성 (서버 API 호출)
+    try {
+      await fetch('/api/auth/create-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          email: user.email,
+          full_name: signUpData.fullName || null,
+          role: 'user',
+        })
+      });
+    } catch (e: any) {
+      // 네트워크 오류 등은 무시 (unique 등)
+      console.error('프로필 생성 API 호출 오류:', e);
     }
 
-    // 비밀번호 해시화하여 profiles 테이블에도 저장 (백업용)
-    const saltRounds = 12
-    const passwordHash = await bcrypt.hash(signUpData.password, saltRounds)
-
-    // profiles 테이블에 사용자 정보 저장/업데이트
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: otpResult.user?.id,
-        email: signUpData.email,
-        full_name: signUpData.fullName,
-        password_hash: passwordHash,
-        updated_at: new Date().toISOString()
-      })
-
-    if (profileError) {
-      console.error('프로필 저장 오류:', profileError)
-      // 비밀번호 해시 저장에 실패해도 OTP 로그인은 성공으로 처리
-    }
-
-    // 임시 데이터 정리
     sessionStorage.removeItem('pendingSignUp')
-
     return {
       success: true,
       message: '회원가입이 완료되었습니다!',
-      user: otpResult.user
+      user
     }
   } catch (error) {
     console.error('OTP 회원가입 완료 오류:', error)
@@ -656,9 +633,10 @@ export function onAuthStateChange(callback: (event: string, session: any) => voi
 // 13. 사용자 프로필 가져오기
 export async function getUserProfile(userId: string) {
   try {
+    // profiles.* 대신 명시적 컬럼 지정 (users 네스팅 방지)
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, full_name, avatar_url, created_at, updated_at, role')
       .eq('id', userId)
       .single()
 
@@ -667,10 +645,13 @@ export async function getUserProfile(userId: string) {
       return null
     }
 
-    return data
+    // profiles.role을 최상위로 반환
+    const role = data?.role ?? null;
+    const profile = { ...data, role };
+    return profile;
   } catch (error) {
     console.error('getUserProfile 오류:', error)
-    return null
+    return null;
   }
 }
 
