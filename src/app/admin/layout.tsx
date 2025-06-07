@@ -1,6 +1,6 @@
+'use client';
+
 import { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { getServerSupabaseClient } from '@/lib/supabaseServer';
 import Navbar from "@/components/navbar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/use-toast";
@@ -14,20 +14,7 @@ const adminNav = [
   { label: "Integrations", href: "/admin/integrations" },
 ];
 
-export default async function AdminLayout({ children }: { children: ReactNode }) {
-  // 서버에서 Supabase 세션 및 role 체크
-  const supabase = getServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  console.log('SSR user:', user);
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user?.id)
-    .single();
-  console.log('SSR profile:', data, error);
-  if (!user) redirect("/");
-  if (error || !data || data.role !== "admin") redirect("/");
-
+export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className="main-dark-theme min-h-screen">

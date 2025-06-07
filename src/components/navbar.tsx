@@ -98,7 +98,7 @@ export default function Navbar() {
                           variant="outline"
                           size="sm"
                           className="text-purple-400 border-purple-500 hover:bg-purple-700/20 hover:text-white transition-colors"
-                          onClick={() => router.push('/admin/dashboard')}
+                          onClick={() => router.push('/admin')}
                         >
                           <Shield className="h-4 w-4 mr-1" />
                           관리자
@@ -174,7 +174,7 @@ export default function Navbar() {
                 variant="outline"
                 size="sm"
                 className="text-purple-400 border-purple-500 hover:bg-purple-700/20 hover:text-white transition-colors"
-                onClick={() => router.push('/admin/dashboard')}
+                onClick={() => router.push('/admin')}
               >
                 <Shield className="h-4 w-4 mr-1" />
                 관리자
@@ -248,7 +248,7 @@ export default function Navbar() {
                         variant="outline"
                         size="sm"
                         className="text-purple-400 border-purple-500 hover:bg-purple-700/20 hover:text-white transition-colors"
-                        onClick={() => router.push('/admin/dashboard')}
+                        onClick={() => router.push('/admin')}
                       >
                         <Shield className="h-4 w-4 mr-1" />
                         관리자
