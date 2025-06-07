@@ -6,8 +6,12 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ToastProvider } from "@/components/ui/use-toast"
 import { AuthProvider } from "@/contexts/AuthContext"
 import Navbar from "@/components/navbar"
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
+import ClientRoot from '@/components/ClientRoot';
 
 const inter = Inter({ subsets: ["latin"] })
+
+const supabase = createPagesBrowserClient();
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
@@ -81,7 +85,9 @@ export default function RootLayout({
           <AuthProvider>
             <ToastProvider>
               <Navbar />
-              {children}
+              <ClientRoot>
+                {children}
+              </ClientRoot>
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
