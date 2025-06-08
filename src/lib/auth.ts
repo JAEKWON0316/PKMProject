@@ -73,17 +73,31 @@ export async function verifyOtpCode(email: string, token: string): Promise<AuthR
 
     if (error) {
       let message = '코드 인증에 실패했습니다.'
-      
       if (error.message.includes('Invalid token') || error.message.includes('Token has expired')) {
         message = '코드가 올바르지 않거나 만료되었습니다. 다시 시도해주세요.'
       } else if (error.message.includes('Email rate limit exceeded')) {
         message = '너무 많은 시도를 하셨습니다. 잠시 후 다시 시도해주세요.'
       }
-
       return {
         success: false,
         message,
         error: error.message
+      }
+    }
+
+    // 로그인 성공 시 profiles upsert
+    if (data.user?.id) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || '',
+          avatar_url: data.user.user_metadata?.avatar_url || '',
+          role: 'user',
+          updated_at: new Date().toISOString()
+        })
+      } catch (profileError) {
+        console.error('프로필 upsert 오류:', profileError)
       }
     }
 
@@ -114,9 +128,39 @@ export async function signInWithPassword(email: string, password: string): Promi
     if (error) {
       // 기본 로그인 실패 시 커스텀 로그인 시도 (호환성)
       console.log('기본 로그인 실패, 커스텀 로그인 시도:', error.message)
-      
       const customResult = await signInWithCustomPassword(email, password)
+      // 로그인 성공 시 profiles upsert
+      if (customResult.success && customResult.user?.id) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: customResult.user.id,
+            email: customResult.user.email,
+            full_name: customResult.user.user_metadata?.full_name || '',
+            avatar_url: customResult.user.user_metadata?.avatar_url || '',
+            role: 'user',
+            updated_at: new Date().toISOString()
+          })
+        } catch (profileError) {
+          console.error('프로필 upsert 오류:', profileError)
+        }
+      }
       return customResult
+    }
+
+    // 로그인 성공 시 profiles upsert
+    if (data.user?.id) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || '',
+          avatar_url: data.user.user_metadata?.avatar_url || '',
+          role: 'user',
+          updated_at: new Date().toISOString()
+        })
+      } catch (profileError) {
+        console.error('프로필 upsert 오류:', profileError)
+      }
     }
 
     console.log('✅ 기본 비밀번호 로그인 성공:', data.user?.email)
@@ -157,6 +201,7 @@ export async function signInWithGoogle(): Promise<AuthResult> {
     }
 
     // OAuth는 리다이렉트되므로 즉시 결과를 알 수 없음
+    // 로그인 후 클라이언트에서 세션이 갱신되면, AuthContext 등에서 profiles upsert를 별도로 호출해야 함
     return {
       success: true,
       message: 'Google 로그인을 진행합니다...'
@@ -256,24 +301,19 @@ export async function completeSignUpWithOtp(email: string, token: string): Promi
       // 실패해도 계속 진행
     }
 
-    // 비밀번호 해시화하여 profiles 테이블에도 저장 (백업용)
-    const saltRounds = 12
-    const passwordHash = await bcrypt.hash(signUpData.password, saltRounds)
-
-    // profiles 테이블에 사용자 정보 저장/업데이트
+    // profiles 테이블에 사용자 정보 저장/업데이트 (password_hash 제거)
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({
         id: otpResult.user?.id,
         email: signUpData.email,
         full_name: signUpData.fullName,
-        password_hash: passwordHash,
         updated_at: new Date().toISOString()
       })
 
     if (profileError) {
       console.error('프로필 저장 오류:', profileError)
-      // 비밀번호 해시 저장에 실패해도 OTP 로그인은 성공으로 처리
+      // 저장에 실패해도 OTP 로그인은 성공으로 처리
     }
 
     // 임시 데이터 정리
@@ -305,9 +345,7 @@ export async function signInWithCustomPassword(email: string, password: string):
       },
       body: JSON.stringify({ email, password })
     })
-
     const result = await response.json()
-
     if (!result.success) {
       return {
         success: false,
@@ -315,16 +353,12 @@ export async function signInWithCustomPassword(email: string, password: string):
         error: result.error
       }
     }
-
     // 직접 세션이 있는 경우 (password_direct)
     if (result.loginMethod === 'password_direct' && result.session) {
-      console.log('🔐 직접 비밀번호 로그인: 세션 설정')
-      
       const { data, error } = await supabase.auth.setSession({
         access_token: result.session.access_token,
         refresh_token: result.session.refresh_token
       })
-
       if (error) {
         console.error('❌ 세션 설정 실패:', error)
         return {
@@ -333,39 +367,71 @@ export async function signInWithCustomPassword(email: string, password: string):
           error: error.message
         }
       }
-
-      console.log('✅ 비밀번호 로그인 성공:', data.user?.email)
+      // 로그인 성공 시 profiles upsert
+      if (data.user?.id) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: data.user.user_metadata?.full_name || '',
+            avatar_url: data.user.user_metadata?.avatar_url || '',
+            role: 'user',
+            updated_at: new Date().toISOString()
+          })
+        } catch (profileError) {
+          console.error('프로필 upsert 오류:', profileError)
+        }
+      }
       return {
         success: true,
         message: '로그인 성공!',
         user: data.user
       }
     }
-
     // 비밀번호 검증 완료된 경우 - OTP 없이 바로 성공 처리
     if (result.loginMethod === 'password_verified') {
-      console.log('🔐 비밀번호 검증 완료 - 바로 로그인 처리')
-      
-      // 수동 인증이 필요한 경우
       if (result.requiresManualAuth && result.user) {
-        // 임시로 세션 없이 사용자 상태만 설정
-        console.log('✅ 수동 인증으로 로그인 상태 설정')
-        
-        // localStorage에 임시 사용자 정보 저장 (AuthContext에서 읽을 수 있도록)
         if (typeof window !== 'undefined') {
           localStorage.setItem('temp_auth_user', JSON.stringify(result.user))
           localStorage.setItem('temp_auth_verified', 'true')
         }
-        
+        // 로그인 성공 시 profiles upsert
+        if (result.user?.id) {
+          try {
+            await supabase.from('profiles').upsert({
+              id: result.user.id,
+              email: result.user.email,
+              full_name: result.user.user_metadata?.full_name || '',
+              avatar_url: result.user.user_metadata?.avatar_url || '',
+              role: 'user',
+              updated_at: new Date().toISOString()
+            })
+          } catch (profileError) {
+            console.error('프로필 upsert 오류:', profileError)
+          }
+        }
         return {
           success: true,
           message: '로그인 성공!',
           user: result.user
         }
       }
-      
-      // 사용자 정보가 있으면 바로 성공으로 처리
       if (result.user) {
+        // 로그인 성공 시 profiles upsert
+        if (result.user?.id) {
+          try {
+            await supabase.from('profiles').upsert({
+              id: result.user.id,
+              email: result.user.email,
+              full_name: result.user.user_metadata?.full_name || '',
+              avatar_url: result.user.user_metadata?.avatar_url || '',
+              role: 'user',
+              updated_at: new Date().toISOString()
+            })
+          } catch (profileError) {
+            console.error('프로필 upsert 오류:', profileError)
+          }
+        }
         return {
           success: true,
           message: '로그인 성공!',
@@ -373,16 +439,12 @@ export async function signInWithCustomPassword(email: string, password: string):
         }
       }
     }
-
     // 기존 세션 토큰 방식 (호환성)
     if (result.session?.access_token && result.session?.refresh_token) {
-      console.log('🔐 비밀번호 로그인: 세션 설정')
-      
       const { data, error } = await supabase.auth.setSession({
         access_token: result.session.access_token,
         refresh_token: result.session.refresh_token
       })
-
       if (error) {
         console.error('❌ 세션 설정 실패:', error)
         return {
@@ -391,15 +453,27 @@ export async function signInWithCustomPassword(email: string, password: string):
           error: error.message
         }
       }
-
-      console.log('✅ 비밀번호 로그인 성공:', data.user?.email)
+      // 로그인 성공 시 profiles upsert
+      if (data.user?.id) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: data.user.user_metadata?.full_name || '',
+            avatar_url: data.user.user_metadata?.avatar_url || '',
+            role: 'user',
+            updated_at: new Date().toISOString()
+          })
+        } catch (profileError) {
+          console.error('프로필 upsert 오류:', profileError)
+        }
+      }
       return {
         success: true,
         message: result.message,
         user: data.user
       }
     }
-
     return {
       success: true,
       message: result.message,

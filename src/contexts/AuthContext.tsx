@@ -76,11 +76,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   // 프로필 fetch (캐시 우선, 네트워크 후 최신값 갱신)
+  const fetchUserProfileWithRetry = useCallback(
+    async (userId: string, maxRetries = 5, delay = 500) => {
+      for (let i = 0; i < maxRetries; i++) {
+        const profileData = await getUserProfile(userId)
+        if (profileData && profileData.full_name) return profileData
+        await new Promise(res => setTimeout(res, delay))
+      }
+      return null
+    },
+    []
+  )
+
   const fetchUserProfile = useCallback(
     async (userId: string) => {
+      setProfile('loading' as any)
       if (profileCacheRef.current[userId]) setProfile(profileCacheRef.current[userId])
       try {
-        const profileData = await getUserProfile(userId)
+        const profileData = await fetchUserProfileWithRetry(userId)
         setProfile(profileData || null)
         profileCacheRef.current[userId] = profileData || null
       } catch (error: any) {
