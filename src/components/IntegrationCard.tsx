@@ -17,6 +17,7 @@ type IntegrationCardProps = {
   categoryCount?: number
   onFavoriteToggle?: () => void
   onDeleteSuccess?: (sessionId: string) => void
+  userMap?: Record<string, string>
 }
 
 // 카테고리별 색상 매핑
@@ -48,8 +49,8 @@ const categoryColors: Record<string, string> = {
   "Social Media": "#8b5cf6"
 }
 
-export default function IntegrationCard({ integration, categoryCount, onFavoriteToggle, onDeleteSuccess }: IntegrationCardProps) {
-  const { user, isAuthenticated, session } = useAuth()
+export default function IntegrationCard({ integration, categoryCount, onFavoriteToggle, onDeleteSuccess, userMap }: IntegrationCardProps) {
+  const { user, isAuthenticated, session, profile } = useAuth()
   const [isUpdating, setIsUpdating] = useState(false)
   const [favoriteState, setFavoriteState] = useState(
     integration.chatSession?.metadata?.favorite || false
@@ -82,6 +83,13 @@ export default function IntegrationCard({ integration, categoryCount, onFavorite
   const formattedDate = created_at 
     ? formatDistanceToNow(new Date(created_at), { addSuffix: true, locale: ko }) 
     : null
+
+  // userMap에서 이름 찾기
+  const userName = chatSession?.user_id && userMap ? userMap[chatSession.user_id] : undefined
+  // 디버깅: user_id와 userName, userMap 콘솔 출력 (JSX return 바깥에서만)
+  if (chatSession?.user_id) {
+    console.log('카드 user_id:', chatSession.user_id, 'userName:', userName, 'userMap:', userMap);
+  }
 
   // 즐겨찾기 토글 핸들러
   const handleFavoriteToggle = async (e: React.MouseEvent) => {
@@ -241,32 +249,28 @@ export default function IntegrationCard({ integration, categoryCount, onFavorite
             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/0 via-purple-600/0 to-purple-600/0 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
             <CardContent className="p-4 flex flex-col h-full">
               {/* 헤더 섹션 */}
-              <div className="flex items-start justify-between mb-2">
-                {/* 아이콘과 카테고리 정보 */}
-                <div className="flex items-center">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <div className="flex items-center min-w-0">
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center mr-2 transition-transform group-hover:scale-110"
+                    className="w-8 h-8 rounded-full flex items-center justify-center mr-2 transition-transform group-hover:scale-110 flex-shrink-0"
                     style={{ backgroundColor: `${color}20` }}
                   >
-                    {/* Icon을 JSX 요소로 렌더링 */}
                     <Icon
                       className="w-4 h-4 transition-all group-hover:text-white"
                       style={{ color }}
                     />
                   </div>
-                  <div>
-                    <div className="text-xs font-medium transition-colors" style={{ color }}>
+                  <div className="truncate">
+                    <span className="text-xs font-medium transition-colors truncate" style={{ color }}>
                       {category}
                       {subCategory && ` / ${subCategory}`}
-                    </div>
+                    </span>
                   </div>
                 </div>
-                
-                {/* 날짜 정보 */}
                 {formattedDate && (
-                  <div className="text-xs text-gray-400 flex items-center">
+                  <div className="text-xs text-gray-400 flex items-center flex-shrink-0 ml-2">
                     <Clock className="w-3 h-3 mr-1" />
-                    {formattedDate}
+                    <span className="truncate max-w-[90px]">{formattedDate}</span>
                   </div>
                 )}
               </div>
@@ -275,6 +279,11 @@ export default function IntegrationCard({ integration, categoryCount, onFavorite
               <h3 className="font-semibold text-sm text-white mb-2 group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:via-purple-500 group-hover:to-pink-500 transition-all duration-300">
                 {title}
               </h3>
+              
+              {/* 올린 사람 이름 */}
+              {userName && (
+                <div className="text-xs text-slate-400 mb-1">작성자: {userName}</div>
+              )}
               
               {/* 요약 */}
               <p className="text-xs text-gray-400 flex-grow overflow-hidden group-hover:text-gray-300 transition-colors">
@@ -287,8 +296,8 @@ export default function IntegrationCard({ integration, categoryCount, onFavorite
               <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
                 {/* 좌측: 삭제 버튼 + 태그 */}
                 <div className="flex items-center gap-2">
-                  {/* 내가 올린 대화만 삭제 버튼 노출 */}
-                  {chatSession?.user_id === user?.id && (
+                  {/* 삭제 버튼 노출 조건: 본인 대화 or 관리자 */}
+                  {(chatSession && (chatSession.user_id === user?.id || profile?.role === 'admin')) && (
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpen(true); }}
                       disabled={isDeleting}

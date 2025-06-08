@@ -63,10 +63,11 @@ interface DashboardData {
   userStats: UserStats;
   recentActivity: any[];
   activityTrend: any[];
+  allSessions?: Partial<ChatSession>[];
 }
 
 export default function DashboardClient() {
-  const { user, isAuthenticated, loading } = useAuth()
+  const { user, isAuthenticated, loading, profile } = useAuth()
   
   // 기존 UI 상태들 (모두 보존)
   const [theme, setTheme] = useState<"dark" | "light">("dark")
@@ -89,25 +90,28 @@ export default function DashboardClient() {
 
   // 사용자 데이터 로딩
   const fetchUserData = async () => {
-    if (!user?.id) {
+    if (!user?.id || !profile) {
       setIsLoading(false)
       return
     }
-
     try {
       setError(null)
-      const result = await getAllChatSessionsLightweight(user.id)
-      // 현재 사용자의 대화만 필터링
-      const userSessions = result.sessions.filter(session => session.user_id === user.id)
+      // 관리자면 전체 대화, 아니면 본인 대화만 fetch
+      const isAdmin = profile.role === 'admin';
+      const result = await getAllChatSessionsLightweight(isAdmin ? null : user.id);
+      // 전체 대화 수/목록
+      const allSessions = result.sessions;
+      // 본인 대화만 필터링
+      const userSessions = isAdmin ? allSessions : allSessions.filter(session => session.user_id === user.id);
       const userStats = calculateUserStats(userSessions as any)
       const recentActivity = getRecentActivity(userSessions as any, 4)
       const activityTrend = getActivityTrend(userSessions as any)
-
       setData({
         sessions: userSessions as any,
         userStats,
         recentActivity,
-        activityTrend
+        activityTrend,
+        allSessions: isAdmin ? allSessions : undefined // 관리자만 전체 대화 목록 보관
       })
     } catch (err) {
       console.error('Dashboard 데이터 로딩 오류:', err)
@@ -275,6 +279,9 @@ export default function DashboardClient() {
   // Dashboard 통계를 위한 동적 데이터
   const dashboardStats = data ? formatStatsForDashboard(data.userStats) : null
 
+  // 관리자용 전체 대화 수 MetricCard
+  const isAdmin = profile?.role === 'admin';
+
   // AuthContext가 아직 로딩 중이면 로딩 화면 표시
   if (loading) {
     return (
@@ -365,7 +372,7 @@ export default function DashboardClient() {
               <div className="absolute inset-6 border-4 border-b-blue-500 border-t-transparent border-r-transparent border-l-transparent rounded-full animate-spin-slower"></div>
               <div className="absolute inset-8 border-4 border-l-green-500 border-t-transparent border-r-transparent border-b-transparent rounded-full animate-spin"></div>
             </div>
-            <div className="mt-4 text-purple-500 font-mono text-sm tracking-wider">SYSTEM INITIALIZING</div>
+            <div className="mt-4 text-purple-500 font-mono text-sm tracking-wider">PKM AI</div>
           </div>
         </div>
       )}
@@ -730,6 +737,37 @@ export default function DashboardClient() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 관리자용 전체 대화 수 MetricCard */}
+              {isAdmin && data?.allSessions && (
+                <div className="mb-6">
+                  <MetricCard
+                    title="전체 대화 수"
+                    value={data.allSessions.length}
+                    icon={MessageSquare}
+                    trend="stable"
+                    color="cyan"
+                    detail="모든 유저의 총 대화 수"
+                    showPercentage={false}
+                  />
+                  {/* 전체 대화 목록 간단 리스트 */}
+                  <div className="mt-4 bg-slate-800/60 rounded-lg p-4">
+                    <h3 className="text-lg font-bold mb-2 text-purple-300">전체 대화 목록</h3>
+                    <ul className="divide-y divide-slate-700 max-h-80 overflow-y-auto">
+                      {data.allSessions.slice(0, 50).map(session => (
+                        <li key={session.id} className="py-2 flex justify-between items-center">
+                          <span className="truncate max-w-xs">{session.title || '제목 없음'}</span>
+                          <span className="text-xs text-slate-400 ml-2">{session.user_id}</span>
+                          <span className="text-xs text-slate-500 ml-2">{session.created_at ? new Date(session.created_at).toLocaleString() : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {data.allSessions.length > 50 && (
+                      <div className="text-xs text-slate-400 mt-2">(최대 50개만 표시)</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

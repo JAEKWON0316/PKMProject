@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ToastProvider } from "@/components/ui/use-toast"
 import { AuthProvider } from "@/contexts/AuthContext"
 import Navbar from "@/components/navbar"
+import { AuthCookieSync } from "./AuthCookieSync"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -80,6 +81,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             <ToastProvider>
+              <AuthCookieSync />
               <Navbar />
               {children}
             </ToastProvider>

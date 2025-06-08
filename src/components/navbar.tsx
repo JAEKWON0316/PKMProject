@@ -84,6 +84,10 @@ export default function Navbar() {
               <NavLink href="/integrations" label="대화 찾아보기" isActive={pathname === '/integrations'} />
               <NavLink href="/pricing" label="가격" isActive={pathname === '/pricing'} />
               <NavLink href="/dashboard" label="대시보드" isActive={pathname === '/dashboard'} />
+              {/* 관리자 전용 메뉴 */}
+              {!loading && profile?.role === 'admin' && (
+                <NavLink href="/admin" label="관리자" isActive={pathname === '/admin'} />
+              )}
             </div>
 
             {/* 데스크탑: 우측 버튼들 */}
@@ -214,6 +218,15 @@ export default function Navbar() {
               isActive={pathname === '/dashboard'}
               onClick={() => setIsMobileMenuOpen(false)}
             />
+            {/* 관리자 전용 메뉴 */}
+            {!loading && profile?.role === 'admin' && (
+              <MobileNavLink 
+                href="/admin" 
+                label="관리자" 
+                isActive={pathname === '/admin'}
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+            )}
             {!loading && (
               <div className="pt-2 border-t border-gray-800">
                 {isAuthenticated ? (

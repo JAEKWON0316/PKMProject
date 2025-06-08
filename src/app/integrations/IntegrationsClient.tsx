@@ -8,6 +8,7 @@ import Pagination from "@/components/Pagination"
 import { ChatSession } from "@/types"
 import { useAuth } from "@/contexts/AuthContext"
 import { getAllChatSessionsLightweight } from "@/utils/supabaseHandler"
+import { getSupabaseClient } from "@/lib/supabase"
 
 const ITEMS_PER_PAGE = 30
 
@@ -37,6 +38,7 @@ export default function IntegrationsClient() {
   const [data, setData] = useState<IntegrationsData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [users, setUsers] = useState<{ id: string; full_name: string }[]>([])
 
   // URL 업데이트 함수
   const updateUrlWithCategory = (newCategory: string) => {
@@ -60,6 +62,25 @@ export default function IntegrationsClient() {
       
       // 클라이언트에서 직접 조회
       const result = await getAllChatSessionsLightweight(user?.id)
+      
+      // user_id가 있는 유저 목록 추가 fetch
+      const userIds = Array.from(new Set(result.sessions.map(s => s.user_id).filter(Boolean)))
+      let usersList: { id: string; full_name: string }[] = []
+      if (userIds.length > 0) {
+        const supabase = getSupabaseClient()
+        const { data: userRows, error: userError } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds)
+        console.log('userIds:', userIds)
+        console.log('userRows:', userRows)
+        console.log('userError:', userError)
+        if (userError) {
+          throw userError
+        }
+        usersList = userRows || []
+      }
+      setUsers(usersList)
       
       const endTime = Date.now()
       console.log(`⚡ 로딩 완료: ${endTime - startTime}ms`)
@@ -204,6 +225,13 @@ export default function IntegrationsClient() {
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE
   );
+
+  // userMap 생성
+  const userMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    users.forEach(u => { map[u.id] = u.full_name })
+    return map
+  }, [users])
 
   // 로딩 상태
   if (loading) {
@@ -354,6 +382,7 @@ export default function IntegrationsClient() {
                 chatSessions={paginatedSessions}
                 integrations={[]}
                 onFavoriteToggle={handleRefresh}
+                userMap={userMap}
               />
               {totalPages > 1 && (
                 <div className="mt-6">

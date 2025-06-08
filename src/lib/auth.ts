@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './supabase'
+import { getSupabaseClient, getSupabaseAdmin } from './supabase'
 import bcrypt from 'bcryptjs'
 
 const supabase = getSupabaseClient()
@@ -88,14 +88,7 @@ export async function verifyOtpCode(email: string, token: string): Promise<AuthR
     // 로그인 성공 시 profiles upsert
     if (data.user?.id) {
       try {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || '',
-          avatar_url: data.user.user_metadata?.avatar_url || '',
-          role: 'user',
-          updated_at: new Date().toISOString()
-        })
+        await syncUserProfile(data.user)
       } catch (profileError) {
         console.error('프로필 upsert 오류:', profileError)
       }
@@ -132,14 +125,7 @@ export async function signInWithPassword(email: string, password: string): Promi
       // 로그인 성공 시 profiles upsert
       if (customResult.success && customResult.user?.id) {
         try {
-          await supabase.from('profiles').upsert({
-            id: customResult.user.id,
-            email: customResult.user.email,
-            full_name: customResult.user.user_metadata?.full_name || '',
-            avatar_url: customResult.user.user_metadata?.avatar_url || '',
-            role: 'user',
-            updated_at: new Date().toISOString()
-          })
+          await syncUserProfile(customResult.user)
         } catch (profileError) {
           console.error('프로필 upsert 오류:', profileError)
         }
@@ -150,14 +136,7 @@ export async function signInWithPassword(email: string, password: string): Promi
     // 로그인 성공 시 profiles upsert
     if (data.user?.id) {
       try {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || '',
-          avatar_url: data.user.user_metadata?.avatar_url || '',
-          role: 'user',
-          updated_at: new Date().toISOString()
-        })
+        await syncUserProfile(data.user)
       } catch (profileError) {
         console.error('프로필 upsert 오류:', profileError)
       }
@@ -370,14 +349,7 @@ export async function signInWithCustomPassword(email: string, password: string):
       // 로그인 성공 시 profiles upsert
       if (data.user?.id) {
         try {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.user_metadata?.full_name || '',
-            avatar_url: data.user.user_metadata?.avatar_url || '',
-            role: 'user',
-            updated_at: new Date().toISOString()
-          })
+          await syncUserProfile(data.user)
         } catch (profileError) {
           console.error('프로필 upsert 오류:', profileError)
         }
@@ -398,14 +370,7 @@ export async function signInWithCustomPassword(email: string, password: string):
         // 로그인 성공 시 profiles upsert
         if (result.user?.id) {
           try {
-            await supabase.from('profiles').upsert({
-              id: result.user.id,
-              email: result.user.email,
-              full_name: result.user.user_metadata?.full_name || '',
-              avatar_url: result.user.user_metadata?.avatar_url || '',
-              role: 'user',
-              updated_at: new Date().toISOString()
-            })
+            await syncUserProfile(result.user)
           } catch (profileError) {
             console.error('프로필 upsert 오류:', profileError)
           }
@@ -420,14 +385,7 @@ export async function signInWithCustomPassword(email: string, password: string):
         // 로그인 성공 시 profiles upsert
         if (result.user?.id) {
           try {
-            await supabase.from('profiles').upsert({
-              id: result.user.id,
-              email: result.user.email,
-              full_name: result.user.user_metadata?.full_name || '',
-              avatar_url: result.user.user_metadata?.avatar_url || '',
-              role: 'user',
-              updated_at: new Date().toISOString()
-            })
+            await syncUserProfile(result.user)
           } catch (profileError) {
             console.error('프로필 upsert 오류:', profileError)
           }
@@ -456,14 +414,7 @@ export async function signInWithCustomPassword(email: string, password: string):
       // 로그인 성공 시 profiles upsert
       if (data.user?.id) {
         try {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.user_metadata?.full_name || '',
-            avatar_url: data.user.user_metadata?.avatar_url || '',
-            role: 'user',
-            updated_at: new Date().toISOString()
-          })
+          await syncUserProfile(data.user)
         } catch (profileError) {
           console.error('프로필 upsert 오류:', profileError)
         }
@@ -666,6 +617,11 @@ export async function signOut(): Promise<AuthResult> {
   try {
     const { error } = await supabase.auth.signOut()
 
+    // 클라이언트에서 쿠키 삭제
+    if (typeof window !== 'undefined') {
+      removeAuthCookie();
+    }
+
     if (error) {
       return {
         success: false,
@@ -732,7 +688,7 @@ export async function getUserProfile(userId: string) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, full_name, avatar_url, role, created_at, updated_at')
       .eq('id', userId)
       .single()
 
@@ -781,5 +737,80 @@ export async function updateUserProfile(userId: string, updates: {
       message: '네트워크 오류가 발생했습니다.',
       error: error instanceof Error ? error.message : 'Unknown error'
     }
+  }
+}
+
+/**
+ * 서버에서 인증 토큰(JWT)에서 userId를 추출하고, profiles.role이 'admin'인지 체크하는 함수
+ * 인증 실패/권한 없음 시 에러 throw
+ * @param token Authorization 헤더의 Bearer 토큰(JWT)
+ * @returns userId (admin이면)
+ */
+export async function requireAdmin(token: string): Promise<string> {
+  const supabase = getSupabaseAdmin()
+  if (!supabase) throw new Error('Supabase Admin 클라이언트 생성 실패')
+  if (!token) throw new Error('인증 토큰이 필요합니다.')
+  // 1. 토큰에서 userId 추출
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token)
+  if (userError || !user) throw new Error('유효하지 않은 토큰')
+  // 2. profiles에서 role 조회
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (profileError || !profile || profile.role !== 'admin') {
+    throw new Error('관리자 권한 없음')
+  }
+  return user.id
+}
+
+// 프로필 동기화 함수 (insert 시에만 role: 'user')
+async function syncUserProfile(user: any) {
+  if (!user?.id) return;
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+  if (!existingProfile) {
+    // 최초 생성: role: 'user'
+    await supabase.from('profiles').insert({
+      id: user.id,
+      email: user.email,
+      full_name: user.user_metadata?.full_name || '',
+      avatar_url: user.user_metadata?.avatar_url || '',
+      role: 'user',
+      updated_at: new Date().toISOString()
+    });
+  } else {
+    // 이미 있으면 role 건드리지 않고 update만
+    await supabase.from('profiles').update({
+      email: user.email,
+      full_name: user.user_metadata?.full_name || '',
+      avatar_url: user.user_metadata?.avatar_url || '',
+      updated_at: new Date().toISOString()
+    }).eq('id', user.id);
+  }
+}
+
+// 클라이언트 LocalStorage의 Supabase 토큰을 sb-access-token 쿠키로 복사
+export function setAuthCookieFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('sb-ghtqqcoyakjozzhegktl-auth-token');
+    if (!raw) return;
+    const { access_token } = JSON.parse(raw);
+    if (access_token) {
+      document.cookie = `sb-access-token=${access_token}; path=/; SameSite=Lax`;
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+// 클라이언트에서 sb-access-token 쿠키 삭제
+export function removeAuthCookie() {
+  if (typeof document !== 'undefined') {
+    document.cookie = 'sb-access-token=; Max-Age=0; path=/;';
   }
 } 

@@ -19,7 +19,8 @@ import {
   sendPasswordResetOtp,
   verifyPasswordResetOtp,
   resetPasswordWithOtp,
-  AuthResult 
+  AuthResult,
+  setAuthCookieFromLocalStorage
 } from "@/lib/auth"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -192,16 +193,14 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
   // 메시지 표시 헬퍼
   const showResult = async (result: AuthResult) => {
     if (result.success) {
-      // 로그인 성공 시 리다이렉트 처리
+      // 로그인 성공 시 쿠키 복사 및 새로고침 (SSR 인증 보장)
       if (result.user && (otpMode || usePassword)) {
-        // 짧은 딜레이 후 폼 닫고 리다이렉트
+        setAuthCookieFromLocalStorage();
         setTimeout(() => {
-          onClose?.()
-          router.push('/')
-        }, 500)
-        return
+          window.location.reload();
+        }, 100);
+        return;
       }
-      
       // 일반적인 성공 메시지 (코드 발송 등)
       setSuccessMessage(result.message)
       setErrorMessage("")

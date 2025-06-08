@@ -24,9 +24,10 @@ type IntegrationGridProps = {
   chatSessions?: Partial<ChatSession>[]
   categoryCount?: number
   onFavoriteToggle?: () => void
+  userMap?: Record<string, string>
 }
 
-export default function IntegrationGrid({ integrations, chatSessions = [], categoryCount, onFavoriteToggle }: IntegrationGridProps) {
+export default function IntegrationGrid({ integrations, chatSessions = [], categoryCount, onFavoriteToggle, userMap }: IntegrationGridProps) {
   // 삭제 성공 시 부모의 onFavoriteToggle만 호출
   const handleDeleteSuccess = () => {
     onFavoriteToggle?.();
@@ -59,6 +60,7 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
             categoryCount={categoryCount}
             onFavoriteToggle={onFavoriteToggle}
             onDeleteSuccess={handleDeleteSuccess}
+            userMap={userMap}
           />
         ))}
       </div>
@@ -75,6 +77,7 @@ export default function IntegrationGrid({ integrations, chatSessions = [], categ
           categoryCount={categoryCount}
           onFavoriteToggle={onFavoriteToggle}
           onDeleteSuccess={handleDeleteSuccess}
+          userMap={userMap}
         />
       ))}
     </div>
