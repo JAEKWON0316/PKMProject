@@ -20,6 +20,7 @@ interface ChatMessage {
   }[];
   summary?: string;
   hasSourceContext?: boolean;
+  isTyping?: boolean;
 }
 
 export default function RagPage() {
@@ -31,6 +32,8 @@ export default function RagPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  // 타이핑 애니메이션을 위한 상태
+  const [pendingTyping, setPendingTyping] = useState<null | {id: string, fullText: string}> (null);
 
   // 메시지 목록이 업데이트될 때마다 스크롤을 아래로 이동
   useEffect(() => {
@@ -45,6 +48,29 @@ export default function RagPage() {
       inputRef.current.focus();
     }
   }, []);
+  
+  // 타이핑 애니메이션 useEffect
+  useEffect(() => {
+    if (!pendingTyping) return;
+    const { id, fullText } = pendingTyping;
+    let idx = 0;
+    const interval = setInterval(() => {
+      setChatHistory(prev => prev.map(msg =>
+        msg.id === id && msg.isTyping
+          ? { ...msg, content: fullText.slice(0, idx + 1) }
+          : msg
+      ));
+      idx++;
+      if (idx >= fullText.length) {
+        clearInterval(interval);
+        setChatHistory(prev => prev.map(msg =>
+          msg.id === id ? { ...msg, isTyping: false, content: fullText } : msg
+        ));
+        setPendingTyping(null);
+      }
+    }, 15); // 25ms/글자
+    return () => clearInterval(interval);
+  }, [pendingTyping]);
   
   // 질의응답 함수
   const handleAskQuestion = async (e: React.FormEvent) => {
@@ -82,35 +108,45 @@ export default function RagPage() {
       const rag = data.data.ragAnswer;
       const fallback = data.data.fallbackAnswer;
       const baseId = Date.now() + 1;
+      // 실제 답변 텍스트를 별도 변수에 저장
+      const ragFullText = rag.answer;
       const ragMessage: ChatMessage = {
         id: baseId.toString(),
         role: 'assistant',
-        content: rag.answer,
+        content: '', // 빈 문자열로 시작
         timestamp: new Date(),
         sources: rag.sources || [],
         summary: rag.summary,
-        hasSourceContext: rag.hasSourceContext === true ? true : false
+        hasSourceContext: rag.hasSourceContext === true ? true : false,
+        isTyping: true // 타이핑 중
       };
       let newMessages = [ragMessage];
-      // rag.answer가 컨텍스트 없음 안내문이거나, rag와 fallback이 다르면 fallbackAnswer를 항상 추가
       const isNoContext = (
         typeof rag.answer === 'string' && (
           rag.answer.includes('이 정보는 제공된 컨텍스트에 없습니다.') ||
           rag.answer.includes('관련 정보를 찾을 수 없습니다.')
         )
-      ) || (rag.sources && rag.sources.length === 0);
-      if (fallback && fallback.answer && (rag.answer !== fallback.answer || isNoContext)) {
-        newMessages.push({
+      ) || !rag.sources || rag.sources.length === 0;
+      let fallbackFullText = '';
+      if (isNoContext && fallback && fallback.answer) {
+        // ragMessage는 추가하지 않고 fallback만 추가
+        const fallbackMessage: ChatMessage = {
           id: (baseId + 1).toString(),
           role: 'assistant',
-          content: fallback.answer,
+          content: '',
           timestamp: new Date(),
           hasSourceContext: false,
           sources: [],
-          summary: undefined
-        });
+          summary: undefined,
+          isTyping: true
+        };
+        setChatHistory(prev => [...prev, fallbackMessage]);
+        setPendingTyping({id: (baseId + 1).toString(), fullText: fallback.answer});
+      } else {
+        // ragMessage만 추가
+        setChatHistory(prev => [...prev, ragMessage]);
+        setPendingTyping({id: baseId.toString(), fullText: rag.answer});
       }
-      setChatHistory(prev => [...prev, ...newMessages]);
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
       
@@ -261,150 +297,288 @@ export default function RagPage() {
                   </div>
                 </div>
               ) : (
-                chatHistory.map((message, idx) => {
-                  // 내 데이터 기반 답변이면 안내문구
-                  const isRag = message.sources && message.sources.length > 0 && message.hasSourceContext;
-                  const isFallback = !isRag && message.role === 'assistant';
-                  return (
-                    <motion.div 
-                      key={message.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {message.role === 'assistant' && (
-                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-end mb-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                          </svg>
-                        </div>
-                      )}
-                      <div className={`max-w-[80%] ${message.role === 'user' ? 
-                        'bg-purple-600 text-white rounded-2xl rounded-tr-sm' : 
-                        'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm'
-                      } p-4 shadow-sm`}>
-                        {/* 안내문구 */}
-                        {isRag && (
-                          <div className="text-xs font-semibold text-purple-500 mb-1">대화내역 기반 답변</div>
-                        )}
-                        {isFallback && (
-                          <div className="text-xs font-semibold text-gray-500 mb-1">일반 AI 답변 (참고용)</div>
-                        )}
-                        <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">
-                          {message.content}
-                        </div>
-                        
-                        {message.sources && message.sources.length > 0 && message.hasSourceContext === true && (
-                          <div className="mt-2">
-                            <button
-                              onClick={() => toggleSources(message.id)}
-                              className="text-xs font-medium hover:underline flex items-center gap-1 mt-2 text-purple-200 dark:text-purple-300"
-                            >
-                              {activeMessageId === message.id ? (
-                                <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="18 15 12 9 6 15"></polyline>
-                                  </svg>
-                                  소스 숨기기 ({message.sources.length})
-                                </>
-                              ) : (
-                                <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                  </svg>
-                                  소스 보기 ({message.sources.length})
-                                </>
-                              )}
-                            </button>
-                            
-                            <AnimatePresence>
-                              {activeMessageId === message.id && (
-                                <motion.div 
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  className="mt-3 space-y-2"
-                                >
-                                  {message.summary && (
-                                    <div className="text-xs bg-purple-100/50 dark:bg-purple-900/20 p-3 rounded mb-2">
-                                      <div className="font-medium mb-1 flex items-center text-purple-700 dark:text-purple-300">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                          <polyline points="14 2 14 8 20 8"></polyline>
-                                          <line x1="16" y1="13" x2="8" y2="13"></line>
-                                          <line x1="16" y1="17" x2="8" y2="17"></line>
-                                          <polyline points="10 9 9 9 8 9"></polyline>
-                                        </svg>
-                                        요약
-                                      </div>
-                                      <div className="text-gray-800 dark:text-gray-200 italic">
-                                        {message.summary}
-                                      </div>
-                                    </div>
-                                  )}
-                                  
-                                  {message.sources.map((source, index) => (
-                                    <div key={index} className="text-xs bg-black/10 dark:bg-white/5 p-3 rounded hover:bg-black/15 dark:hover:bg-white/10 transition-colors">
-                                      <div className="flex items-center justify-between mb-1">
-                                        {source.url ? (
-                                          <a 
-                                            href={source.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="font-medium text-purple-400 hover:text-purple-300 flex items-center group"
-                                          >
-                                            <span className="border-b border-transparent group-hover:border-purple-300 transition-colors">
-                                              {source.title || '제목 없음'}
-                                            </span>
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                              <polyline points="15 3 21 3 21 9"></polyline>
-                                              <line x1="10" y1="14" x2="21" y2="3"></line>
-                                            </svg>
-                                          </a>
-                                        ) : (
-                                          <div className="font-medium">{source.title || '제목 없음'}</div>
-                                        )}
-                                        {source.similarity !== undefined && (
-                                          <div className="text-2xs opacity-70 ml-2 flex-shrink-0">유사도: {(source.similarity * 100).toFixed(1)}%</div>
-                                        )}
-                                      </div>
-                                      <div className="line-clamp-3 text-gray-700 dark:text-gray-300">
-                                        {source.content}
-                                      </div>
-                                      {source.url && (
-                                        <div className="mt-2 text-2xs text-gray-500 dark:text-gray-400 truncate">
-                                          <span className="opacity-70">URL: </span>
-                                          <a 
-                                            href={source.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer" 
-                                            className="text-purple-400 hover:text-purple-300 hover:underline"
-                                          >
-                                            {source.url.length > 40 ? `${source.url.substring(0, 40)}...` : source.url}
-                                          </a>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                (() => {
+                  const elements = [];
+                  let i = 0;
+                  while (i < chatHistory.length) {
+                    const message = chatHistory[i];
+                    // user 메시지
+                    if (message.role === 'user') {
+                      elements.push(
+                        <motion.div
+                          key={message.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`flex justify-end mb-2`}
+                        >
+                          <div className={`max-w-[80%] bg-purple-600 text-white rounded-2xl rounded-tr-sm p-4 shadow-sm`}>
+                            <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">{message.content}</div>
                           </div>
-                        )}
-                      </div>
-                      
-                      {message.role === 'user' && (
-                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center ml-2 flex-shrink-0 self-end mb-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                          </svg>
+                          <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center ml-2 flex-shrink-0 self-end mb-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                          </div>
+                        </motion.div>
+                      );
+                      i++;
+                      continue;
+                    }
+                    // assistant 답변 2개 연속(내 데이터 기반 + 일반 AI)인 경우 가로 2분할로 렌더링
+                    if (
+                      message.role === 'assistant' &&
+                      i + 1 < chatHistory.length &&
+                      chatHistory[i + 1].role === 'assistant' &&
+                      Math.abs(new Date(chatHistory[i + 1].timestamp).getTime() - new Date(message.timestamp).getTime()) < 5000
+                    ) {
+                      elements.push(
+                        <div key={message.id + '-group'} className="flex flex-row gap-4 mb-4">
+                          {[message, chatHistory[i + 1]].map((msg, idx) => (
+                            <motion.div
+                              key={msg.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`flex flex-col w-1/2 min-w-0`}
+                            >
+                              <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-start mb-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                              </div>
+                              <div className={`max-w-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm p-4 shadow-sm`}>
+                                {/* 안내문구 */}
+                                {msg.sources && msg.sources.length > 0 && msg.hasSourceContext && (
+                                  <div className="text-xs font-semibold text-purple-500 mb-1">대화내역 기반 답변</div>
+                                )}
+                                {(!msg.sources || msg.sources.length === 0) && (
+                                  <div className="text-xs font-semibold text-gray-500 mb-1">일반 AI 답변 (참고용)</div>
+                                )}
+                                <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">{msg.content}</div>
+                                {/* 소스 보기 버튼 및 상세 UI (내 데이터 기반 답변에만) */}
+                                {msg.sources && msg.sources.length > 0 && msg.hasSourceContext === true && (
+                                  <div className="mt-2">
+                                    <button
+                                      onClick={() => toggleSources(msg.id)}
+                                      className="text-xs font-medium hover:underline flex items-center gap-1 mt-2 text-purple-200 dark:text-purple-300"
+                                    >
+                                      {activeMessageId === msg.id ? (
+                                        <>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                          </svg>
+                                          소스 숨기기 ({msg.sources.length})
+                                        </>
+                                      ) : (
+                                        <>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                          </svg>
+                                          소스 보기 ({msg.sources.length})
+                                        </>
+                                      )}
+                                    </button>
+                                    <AnimatePresence>
+                                      {activeMessageId === msg.id && (
+                                        <motion.div 
+                                          initial={{ opacity: 0, height: 0 }}
+                                          animate={{ opacity: 1, height: 'auto' }}
+                                          exit={{ opacity: 0, height: 0 }}
+                                          className="mt-3 space-y-2"
+                                        >
+                                          {msg.summary && (
+                                            <div className="text-xs bg-purple-100/50 dark:bg-purple-900/20 p-3 rounded mb-2">
+                                              <div className="font-medium mb-1 flex items-center text-purple-700 dark:text-purple-300">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                  <polyline points="14 2 14 8 20 8"></polyline>
+                                                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                  <polyline points="10 9 9 9 8 9"></polyline>
+                                                </svg>
+                                                요약
+                                              </div>
+                                              <div className="text-gray-800 dark:text-gray-200 italic">
+                                                {msg.summary}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {msg.sources.map((source, index) => (
+                                            <div key={index} className="text-xs bg-black/10 dark:bg-white/5 p-3 rounded hover:bg-black/15 dark:hover:bg-white/10 transition-colors">
+                                              <div className="flex items-center justify-between mb-1">
+                                                {source.url ? (
+                                                  <a 
+                                                    href={source.url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="font-medium text-purple-400 hover:text-purple-300 flex items-center group"
+                                                  >
+                                                    <span className="border-b border-transparent group-hover:border-purple-300 transition-colors">
+                                                      {source.title || '제목 없음'}
+                                                    </span>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                      <polyline points="15 3 21 3 21 9"></polyline>
+                                                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                                                    </svg>
+                                                  </a>
+                                                ) : (
+                                                  <div className="font-medium">{source.title || '제목 없음'}</div>
+                                                )}
+                                                {source.similarity !== undefined && (
+                                                  <div className="text-2xs opacity-70 ml-2 flex-shrink-0">유사도: {(source.similarity * 100).toFixed(1)}%</div>
+                                                )}
+                                              </div>
+                                              <div className="line-clamp-3 text-gray-700 dark:text-gray-300">
+                                                {source.content}
+                                              </div>
+                                              {source.url && (
+                                                <div className="mt-2 text-2xs text-gray-500 dark:text-gray-400 truncate">
+                                                  <span className="opacity-70">URL: </span>
+                                                  <a 
+                                                    href={source.url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="text-purple-400 hover:text-purple-300 hover:underline"
+                                                  >
+                                                    {source.url.length > 40 ? `${source.url.substring(0, 40)}...` : source.url}
+                                                  </a>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
                         </div>
-                      )}
-                    </motion.div>
-                  );
-                })
+                      );
+                      i += 2;
+                      continue;
+                    }
+                    // 그 외(assistant 답변 1개만) 기존처럼 가로로 렌더링
+                    elements.push(
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex justify-start mb-4`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-end mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        </div>
+                        <div className={`max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm p-4 shadow-sm`}>
+                          {/* 안내문구 */}
+                          {message.sources && message.sources.length > 0 && message.hasSourceContext && (
+                            <div className="text-xs font-semibold text-purple-500 mb-1">대화내역 기반 답변</div>
+                          )}
+                          {(!message.sources || message.sources.length === 0) && (
+                            <div className="text-xs font-semibold text-gray-500 mb-1">일반 AI 답변 (참고용)</div>
+                          )}
+                          <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">{message.content}</div>
+                          {/* 소스 보기 버튼 및 상세 UI (내 데이터 기반 답변에만) */}
+                          {message.sources && message.sources.length > 0 && message.hasSourceContext === true && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => toggleSources(message.id)}
+                                className="text-xs font-medium hover:underline flex items-center gap-1 mt-2 text-purple-200 dark:text-purple-300"
+                              >
+                                {activeMessageId === message.id ? (
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="18 15 12 9 6 15"></polyline>
+                                    </svg>
+                                    소스 숨기기 ({message.sources.length})
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                    소스 보기 ({message.sources.length})
+                                  </>
+                                )}
+                              </button>
+                              <AnimatePresence>
+                                {activeMessageId === message.id && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-3 space-y-2"
+                                  >
+                                    {message.summary && (
+                                      <div className="text-xs bg-purple-100/50 dark:bg-purple-900/20 p-3 rounded mb-2">
+                                        <div className="font-medium mb-1 flex items-center text-purple-700 dark:text-purple-300">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                                            <polyline points="10 9 9 9 8 9"></polyline>
+                                          </svg>
+                                          요약
+                                        </div>
+                                        <div className="text-gray-800 dark:text-gray-200 italic">
+                                          {message.summary}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {message.sources.map((source, index) => (
+                                      <div key={index} className="text-xs bg-black/10 dark:bg-white/5 p-3 rounded hover:bg-black/15 dark:hover:bg-white/10 transition-colors">
+                                        <div className="flex items-center justify-between mb-1">
+                                          {source.url ? (
+                                            <a 
+                                              href={source.url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="font-medium text-purple-400 hover:text-purple-300 flex items-center group"
+                                            >
+                                              <span className="border-b border-transparent group-hover:border-purple-300 transition-colors">
+                                                {source.title || '제목 없음'}
+                                              </span>
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                <polyline points="15 3 21 3 21 9"></polyline>
+                                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                                              </svg>
+                                            </a>
+                                          ) : (
+                                            <div className="font-medium">{source.title || '제목 없음'}</div>
+                                          )}
+                                          {source.similarity !== undefined && (
+                                            <div className="text-2xs opacity-70 ml-2 flex-shrink-0">유사도: {(source.similarity * 100).toFixed(1)}%</div>
+                                          )}
+                                        </div>
+                                        <div className="line-clamp-3 text-gray-700 dark:text-gray-300">
+                                          {source.content}
+                                        </div>
+                                        {source.url && (
+                                          <div className="mt-2 text-2xs text-gray-500 dark:text-gray-400 truncate">
+                                            <span className="opacity-70">URL: </span>
+                                            <a 
+                                              href={source.url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer" 
+                                              className="text-purple-400 hover:text-purple-300 hover:underline"
+                                            >
+                                              {source.url.length > 40 ? `${source.url.substring(0, 40)}...` : source.url}
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                    i++;
+                  }
+                  return elements;
+                })()
               )}
               
               {/* 로딩 표시기 */}

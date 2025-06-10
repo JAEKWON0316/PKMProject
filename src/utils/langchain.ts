@@ -166,18 +166,7 @@ export async function generateRagResponse(
     sources = sources.filter(source => source.id !== FAQ_SESSION_ID);
     
     // 5. 프롬프트 생성
-    const prompt = `
-당신은 사용자의 질문에 대한 답변을 생성하는 지식 도우미입니다.
-아래 제공된 컨텍스트를 참고하여 질문에 대한 정확하고 상세한 답변을 제공해주세요.
-답변은 컨텍스트에 제공된 내용만을 토대로 해야 합니다.
-알 수 없거나 컨텍스트에 없는 정보에 대해서는 "이 정보는 제공된 컨텍스트에 없습니다."라고 답해주세요.
-
-컨텍스트:
-${context}
-
-질문: ${query}
-
-답변:`;
+    const prompt = `\n아래 컨텍스트를 참고하여 질문에 답변하세요.\n- 컨텍스트에 명확한 답이 있으면 그 내용을 바탕으로 답변하세요.\n- 컨텍스트에 직접적인 답이 없더라도, 유사하거나 관련된 내용을 바탕으로 최대한 추론하여 답변하세요.\n- 정말로 컨텍스트에 아무런 단서도 없을 때만 \"이 정보는 제공된 컨텍스트에 없습니다.\"라고 답하세요.\n\n컨텍스트:\n${context}\n\n질문: ${query}\n\n답변:`;
     
     // 6. OpenAI API로 응답 생성
     const completion = await openai.chat.completions.create({
