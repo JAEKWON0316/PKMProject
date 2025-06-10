@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/ui/use-toast"
 import { AuthProvider } from "@/contexts/AuthContext"
 import Navbar from "@/components/navbar"
 import { AuthCookieSync } from "./AuthCookieSync"
+import Footer from '@/components/Footer';
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -72,7 +73,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.className} flex flex-col min-h-screen`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -83,7 +84,8 @@ export default function RootLayout({
             <ToastProvider>
               <AuthCookieSync />
               <Navbar />
-              {children}
+              <main className="flex-1 flex flex-col">{children}</main>
+              <Footer />
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>

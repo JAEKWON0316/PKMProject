@@ -771,11 +771,11 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
 
           <div className="mt-6 sm:mt-10 text-center text-xs font-light text-gray-400">
             계속함으로써 귀하는 우리의{" "}
-            <Link href="#" className="text-[#b975ff] hover:underline">
+            <Link href="/terms" className="text-[#b975ff] hover:underline">
               서비스 약관
             </Link>{" "}
             및{" "}
-            <Link href="#" className="text-[#b975ff] hover:underline">
+            <Link href="/privacy" className="text-[#b975ff] hover:underline">
               개인정보 보호정책
             </Link>
             에 동의하게 됩니다.

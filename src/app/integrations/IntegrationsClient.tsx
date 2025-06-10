@@ -19,6 +19,20 @@ interface IntegrationsData {
   isAuthenticated: boolean;
 }
 
+function PKMLoading() {
+  return (
+    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-xl text-gray-300">PKM AI</p>
+          <p className="text-sm text-gray-400 mt-2">로딩 중...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function IntegrationsClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -219,17 +233,7 @@ export default function IntegrationsClient() {
 
   // 로딩 상태
   if (loading) {
-    return (
-      <div className="flex flex-col h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-xl text-gray-300">PKM AI</p>
-            <p className="text-sm text-gray-400 mt-2">로딩 중...</p>
-          </div>
-        </div>
-      </div>
-    )
+    return <PKMLoading />;
   }
 
   // 에러 상태
@@ -255,7 +259,7 @@ export default function IntegrationsClient() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full min-h-0 bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-hidden">
       {/* 왼쪽 사이드바 - 카테고리 필터 */}
       <div className="w-64 hidden md:block bg-gray-800 border-r border-gray-700 overflow-auto pt-20 md:pt-28">
         <div className="p-4">
@@ -304,7 +308,7 @@ export default function IntegrationsClient() {
       </div>
       
       {/* 메인 콘텐츠 영역 */}
-      <div className="flex-1 overflow-auto pt-20 md:pt-28 pb-4 px-3 sm:px-4 md:px-6">
+      <div className="flex-1 min-h-0 overflow-auto pt-20 md:pt-28 pb-4 px-3 sm:px-4 md:px-6">
         {/* 헤더 텍스트 */}
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-purple-500 mb-1">대화 찾아보기</h1>
@@ -338,7 +342,7 @@ export default function IntegrationsClient() {
         </div>
 
         {/* 대화 목록 영역 */}
-        <div className="flex-1 overflow-auto p-4 md:p-6">
+        <div className="p-4 md:p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <span className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">{category}</span>
