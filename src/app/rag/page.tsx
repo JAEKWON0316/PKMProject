@@ -78,19 +78,32 @@ export default function RagPage() {
         throw new Error(data.error || '질문에 대한 답변을 생성하는 중 오류가 발생했습니다.');
       }
       
-      // 어시스턴트 메시지 추가
-      const assistantMessageId = (Date.now() + 1).toString();
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
+      // 어시스턴트 메시지 추가 (내 데이터 기반 답변)
+      const rag = data.data.ragAnswer;
+      const fallback = data.data.fallbackAnswer;
+      const baseId = Date.now() + 1;
+      const ragMessage: ChatMessage = {
+        id: baseId.toString(),
         role: 'assistant',
-        content: data.data.answer,
+        content: rag.answer,
         timestamp: new Date(),
-        sources: data.data.sources || [],
-        summary: data.data.summary,
-        hasSourceContext: data.data.hasSourceContext === true ? true : false
+        sources: rag.sources || [],
+        summary: rag.summary,
+        hasSourceContext: rag.hasSourceContext === true ? true : false
       };
-      
-      setChatHistory(prev => [...prev, assistantMessage]);
+      let newMessages = [ragMessage];
+      if (fallback && fallback.answer && rag.answer !== fallback.answer) {
+        newMessages.push({
+          id: (baseId + 1).toString(),
+          role: 'assistant',
+          content: fallback.answer,
+          timestamp: new Date(),
+          hasSourceContext: false,
+          sources: [],
+          summary: undefined
+        });
+      }
+      setChatHistory(prev => [...prev, ...newMessages]);
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
       
@@ -136,7 +149,7 @@ export default function RagPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-3xl sm:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2"
+              className="text-3xl sm:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-purple-600 mb-2"
             >
               PKM 챗봇
             </motion.h1>
@@ -157,21 +170,7 @@ export default function RagPage() {
             transition={{ delay: 0.6, duration: 0.5 }}
             className="flex justify-center gap-4 mb-6"
           >
-            <Link 
-              href="/" 
-              className="group relative overflow-hidden px-6 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18M9 6l-6 6 6 6"/></svg>
-                메인 페이지로 돌아가기
-              </span>
-              <motion.span 
-                className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                initial={{ x: "-100%" }}
-                whileHover={{ x: 0 }}
-                transition={{ type: "spring", stiffness: 100, damping: 15 }}
-              ></motion.span>
-            </Link>
+        
           </motion.div>
           
           {/* 챗봇 컨테이너 */}
@@ -183,16 +182,34 @@ export default function RagPage() {
           >
             {/* 챗봇 헤더 */}
             <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
               </div>
               <div>
-                <h3 className="font-medium text-gray-900 dark:text-white">PKM 어시스턴트</h3>
+                <h3 className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">PKM 어시스턴트</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">저장된 대화 기반 질의응답 시스템</p>
               </div>
               <div className="ml-auto flex items-center">
+                {/* 대화 초기화(쓰레기통) 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChatHistory([]);
+                    setQuery('');
+                    setError(null);
+                    setActiveMessageId(null);
+                    if (inputRef.current) inputRef.current.focus();
+                  }}
+                  aria-label="대화 초기화"
+                  title="대화 초기화"
+                  className="mr-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
                 <span className="inline-block w-3 h-3 bg-green-500 rounded-full mr-1"></span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">온라인</span>
               </div>
@@ -204,14 +221,14 @@ export default function RagPage() {
               className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
             >
               {chatHistory.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 relative">
                   <motion.div 
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4"
+                    className="w-20 h-20 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                   </motion.div>
@@ -223,168 +240,164 @@ export default function RagPage() {
                   >
                     안녕하세요! 무엇을 도와드릴까요?
                   </motion.h3>
-                  <motion.p 
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                    className="text-gray-600 dark:text-gray-300 max-w-md"
-                  >
-                    저장된 대화 내용을 기반으로 질문에 답변합니다. 질문을 입력하면 관련 정보를 찾아 답변해 드립니다.
-                  </motion.p>
-                  <motion.div 
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4, duration: 0.5 }}
-                    className="mt-6 space-y-2"
-                  >
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">다음과 같은 질문을 해보세요:</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {['프로젝트에 대해 알려줘', '벡터 데이터베이스란?', 'RAG 시스템의 장점은?'].map((suggestion, i) => (
-                        <button 
-                          key={i}
-                          onClick={() => setQuery(suggestion)}
-                          className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-800 dark:text-gray-200"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
+                  {/* 예시 질문 버튼: 좌측 하단에 고정 */}
+                  <div className="absolute left-1 bottom-1 flex flex-row items-end gap-2 z-10">
+                    {['프로젝트에 대해 알려줘', '벡터 데이터베이스란?', 'RAG 시스템의 장점은?'].map((suggestion, i) => (
+                      <button 
+                        key={i}
+                        onClick={() => setQuery(suggestion)}
+                        className="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm font-semibold bg-gradient-to-r from-purple-800 to-purple-950 text-purple-100 rounded-xl shadow-md border border-purple-900 hover:from-purple-900 hover:to-purple-950 hover:text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                chatHistory.map((message) => (
-                  <motion.div 
-                    key={message.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {message.role === 'assistant' && (
-                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-end mb-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                      </div>
-                    )}
-                    
-                    <div className={`max-w-[80%] ${message.role === 'user' ? 
-                      'bg-blue-600 text-white rounded-2xl rounded-tr-sm' : 
-                      'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm'
-                    } p-4 shadow-sm`}>
-                      <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">
-                        {message.content}
-                      </div>
-                      
-                      {message.sources && message.sources.length > 0 && message.hasSourceContext === true && (
-                        <div className="mt-2">
-                          <button
-                            onClick={() => toggleSources(message.id)}
-                            className="text-xs font-medium hover:underline flex items-center gap-1 mt-2 text-blue-200 dark:text-blue-300"
-                          >
-                            {activeMessageId === message.id ? (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="18 15 12 9 6 15"></polyline>
-                                </svg>
-                                소스 숨기기 ({message.sources.length})
-                              </>
-                            ) : (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                                소스 보기 ({message.sources.length})
-                              </>
-                            )}
-                          </button>
-                          
-                          <AnimatePresence>
-                            {activeMessageId === message.id && (
-                              <motion.div 
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="mt-3 space-y-2"
-                              >
-                                {message.summary && (
-                                  <div className="text-xs bg-indigo-100/50 dark:bg-indigo-900/20 p-3 rounded mb-2">
-                                    <div className="font-medium mb-1 flex items-center text-indigo-700 dark:text-indigo-300">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                        <polyline points="14 2 14 8 20 8"></polyline>
-                                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                                        <polyline points="10 9 9 9 8 9"></polyline>
-                                      </svg>
-                                      요약
-                                    </div>
-                                    <div className="text-gray-800 dark:text-gray-200 italic">
-                                      {message.summary}
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {message.sources.map((source, index) => (
-                                  <div key={index} className="text-xs bg-black/10 dark:bg-white/5 p-3 rounded hover:bg-black/15 dark:hover:bg-white/10 transition-colors">
-                                    <div className="flex items-center justify-between mb-1">
-                                      {source.url ? (
-                                        <a 
-                                          href={source.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="font-medium text-blue-400 hover:text-blue-300 flex items-center group"
-                                        >
-                                          <span className="border-b border-transparent group-hover:border-blue-300 transition-colors">
-                                            {source.title || '제목 없음'}
-                                          </span>
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                            <polyline points="15 3 21 3 21 9"></polyline>
-                                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                                          </svg>
-                                        </a>
-                                      ) : (
-                                        <div className="font-medium">{source.title || '제목 없음'}</div>
-                                      )}
-                                      {source.similarity !== undefined && (
-                                        <div className="text-2xs opacity-70 ml-2 flex-shrink-0">유사도: {(source.similarity * 100).toFixed(1)}%</div>
-                                      )}
-                                    </div>
-                                    <div className="line-clamp-3 text-gray-700 dark:text-gray-300">
-                                      {source.content}
-                                    </div>
-                                    {source.url && (
-                                      <div className="mt-2 text-2xs text-gray-500 dark:text-gray-400 truncate">
-                                        <span className="opacity-70">URL: </span>
-                                        <a 
-                                          href={source.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer" 
-                                          className="text-blue-400 hover:text-blue-300 hover:underline"
-                                        >
-                                          {source.url.length > 40 ? `${source.url.substring(0, 40)}...` : source.url}
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                chatHistory.map((message, idx) => {
+                  // 내 데이터 기반 답변이면 안내문구
+                  const isRag = message.sources && message.sources.length > 0 && message.hasSourceContext;
+                  const isFallback = !isRag && message.role === 'assistant';
+                  return (
+                    <motion.div 
+                      key={message.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {message.role === 'assistant' && (
+                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-end mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                          </svg>
                         </div>
                       )}
-                    </div>
-                    
-                    {message.role === 'user' && (
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center ml-2 flex-shrink-0 self-end mb-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                          <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
+                      <div className={`max-w-[80%] ${message.role === 'user' ? 
+                        'bg-purple-600 text-white rounded-2xl rounded-tr-sm' : 
+                        'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm'
+                      } p-4 shadow-sm`}>
+                        {/* 안내문구 */}
+                        {isRag && (
+                          <div className="text-xs font-semibold text-purple-500 mb-1">내 데이터 기반 답변</div>
+                        )}
+                        {isFallback && (
+                          <div className="text-xs font-semibold text-gray-500 mb-1">일반 AI 답변 (참고용)</div>
+                        )}
+                        <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap">
+                          {message.content}
+                        </div>
+                        
+                        {message.sources && message.sources.length > 0 && message.hasSourceContext === true && (
+                          <div className="mt-2">
+                            <button
+                              onClick={() => toggleSources(message.id)}
+                              className="text-xs font-medium hover:underline flex items-center gap-1 mt-2 text-purple-200 dark:text-purple-300"
+                            >
+                              {activeMessageId === message.id ? (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="18 15 12 9 6 15"></polyline>
+                                  </svg>
+                                  소스 숨기기 ({message.sources.length})
+                                </>
+                              ) : (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                  </svg>
+                                  소스 보기 ({message.sources.length})
+                                </>
+                              )}
+                            </button>
+                            
+                            <AnimatePresence>
+                              {activeMessageId === message.id && (
+                                <motion.div 
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-3 space-y-2"
+                                >
+                                  {message.summary && (
+                                    <div className="text-xs bg-purple-100/50 dark:bg-purple-900/20 p-3 rounded mb-2">
+                                      <div className="font-medium mb-1 flex items-center text-purple-700 dark:text-purple-300">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                          <polyline points="14 2 14 8 20 8"></polyline>
+                                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                                          <polyline points="10 9 9 9 8 9"></polyline>
+                                        </svg>
+                                        요약
+                                      </div>
+                                      <div className="text-gray-800 dark:text-gray-200 italic">
+                                        {message.summary}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {message.sources.map((source, index) => (
+                                    <div key={index} className="text-xs bg-black/10 dark:bg-white/5 p-3 rounded hover:bg-black/15 dark:hover:bg-white/10 transition-colors">
+                                      <div className="flex items-center justify-between mb-1">
+                                        {source.url ? (
+                                          <a 
+                                            href={source.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="font-medium text-purple-400 hover:text-purple-300 flex items-center group"
+                                          >
+                                            <span className="border-b border-transparent group-hover:border-purple-300 transition-colors">
+                                              {source.title || '제목 없음'}
+                                            </span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                              <polyline points="15 3 21 3 21 9"></polyline>
+                                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                                            </svg>
+                                          </a>
+                                        ) : (
+                                          <div className="font-medium">{source.title || '제목 없음'}</div>
+                                        )}
+                                        {source.similarity !== undefined && (
+                                          <div className="text-2xs opacity-70 ml-2 flex-shrink-0">유사도: {(source.similarity * 100).toFixed(1)}%</div>
+                                        )}
+                                      </div>
+                                      <div className="line-clamp-3 text-gray-700 dark:text-gray-300">
+                                        {source.content}
+                                      </div>
+                                      {source.url && (
+                                        <div className="mt-2 text-2xs text-gray-500 dark:text-gray-400 truncate">
+                                          <span className="opacity-70">URL: </span>
+                                          <a 
+                                            href={source.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-purple-400 hover:text-purple-300 hover:underline"
+                                          >
+                                            {source.url.length > 40 ? `${source.url.substring(0, 40)}...` : source.url}
+                                          </a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </motion.div>
-                ))
+                      
+                      {message.role === 'user' && (
+                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center ml-2 flex-shrink-0 self-end mb-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                          </svg>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })
               )}
               
               {/* 로딩 표시기 */}
@@ -394,16 +407,16 @@ export default function RagPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex justify-start"
                 >
-                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-end">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-2 flex-shrink-0 self-end">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                   </div>
                   <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-sm p-4 shadow-sm max-w-[80%]">
                     <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '600ms' }}></div>
+                      <div className="h-2 w-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="h-2 w-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      <div className="h-2 w-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '600ms' }}></div>
                     </div>
                   </div>
                 </motion.div>
@@ -419,13 +432,13 @@ export default function RagPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="질문을 입력하세요..."
-                  className="flex-1 py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  className="flex-1 py-3 px-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
                   disabled={loading}
                 />
                 <button
                   type="submit"
                   disabled={loading || !query.trim()}
-                  className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -440,9 +453,7 @@ export default function RagPage() {
                 </div>
               )}
               
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                질문을 입력하면 저장된 지식 기반으로 답변합니다
-              </div>
+           
             </div>
           </motion.div>
         </motion.div>

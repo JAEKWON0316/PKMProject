@@ -18,7 +18,10 @@ export async function generateRagResponse(
   query: string,
   similarity: number = 0.3,
   limit: number = 10
-): Promise<RagResponse> {
+): Promise<{
+  ragAnswer: RagResponse;
+  fallbackAnswer?: { answer: string };
+}> {
   try {
     console.log(`RAG 검색 시작 - 쿼리: "${query}", 유사도 임계값: ${similarity}, 제한: ${limit}`);
     
@@ -59,9 +62,12 @@ export async function generateRagResponse(
       const answer = completion.choices[0].message.content?.trim() || "답변을 생성할 수 없습니다.";
       
       return {
-        answer,
-        sources: [],
-        hasSourceContext: false
+        ragAnswer: {
+          answer,
+          sources: [],
+          hasSourceContext: false
+        },
+        fallbackAnswer: undefined
       };
     }
     
@@ -70,34 +76,37 @@ export async function generateRagResponse(
     
     console.log(`검색된 청크 수: ${similarChunks?.length || 0}`);
     
+    // 유사도 기준 계산 (상위 청크의 유사도 평균)
+    let avgSimilarity = 0;
+    if (similarChunks && similarChunks.length > 0) {
+      avgSimilarity = similarChunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / similarChunks.length;
+    }
+    
+    // 컨텍스트가 없거나 유사도가 낮으면 fallbackAnswer도 생성
+    let fallbackAnswer: { answer: string } | undefined = undefined;
+    if (!similarChunks || similarChunks.length === 0 || avgSimilarity < 0.4) {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-nano",
+        messages: [
+          { role: "system", content: "당신은 친절하고 유능한 AI 어시스턴트입니다. 사용자의 질문에 대해 최대한 정확하고 유익하게 답변하세요." },
+          { role: "user", content: query }
+        ],
+        temperature: 0.7,
+        max_tokens: 600
+      });
+      const answer = completion.choices[0].message.content?.trim() || "죄송합니다. 답변을 생성하지 못했습니다.";
+      fallbackAnswer = { answer };
+    }
+    
+    // 기존 RAG 답변 생성 로직 (컨텍스트가 있으면)
     if (!similarChunks || similarChunks.length === 0) {
-      console.log('관련 청크를 찾을 수 없음');
-      
-      // 메타 질문인지 확인 (supabaseHandler.ts에서도 체크하지만 여기서도 체크)
-      const metaQuestionPatterns = [
-        /이\s*대화의?\s*(핵심|요약|내용|주제)/i,
-        /대화를?\s*(요약|정리)/i,
-        /요약해\s*줘/i,
-        /핵심\s*(내용|포인트)/i,
-        /주요\s*(내용|포인트)/i
-      ];
-      
-      const isMetaQuestion = metaQuestionPatterns.some(pattern => pattern.test(query));
-      
-      if (isMetaQuestion) {
-        // 메타 질문에 대한 응답
-        return {
-          answer: "현재 저장된 대화의 요약 정보를 찾을 수 없습니다. 먼저 대화를 저장해주세요.",
+      return {
+        ragAnswer: {
+          answer: "관련 정보를 찾을 수 없습니다. 내 데이터에 답이 없거나, 더 구체적인 질문을 해보세요.",
           sources: [],
           hasSourceContext: false
-        };
-      }
-      
-      // 일반 질문에 대한 응답
-      return {
-        answer: "관련 정보를 찾을 수 없습니다. 다른 질문을 시도하거나, 더 구체적인 질문을 해보세요. 현재 데이터베이스에 저장된 정보가 제한적일 수 있습니다.",
-        sources: [],
-        hasSourceContext: false
+        },
+        fallbackAnswer
       };
     }
     
@@ -172,10 +181,13 @@ ${context}
     const summary = summaryCompletion.choices[0].message.content?.trim() || "요약을 생성할 수 없습니다.";
     
     return {
-      answer,
-      summary,
-      sources: sources.slice(0, 3), // 상위 3개 출처만 반환
-      hasSourceContext: true
+      ragAnswer: {
+        answer,
+        summary,
+        sources: sources.slice(0, 3),
+        hasSourceContext: true
+      },
+      fallbackAnswer
     };
   } catch (error) {
     console.error('RAG 응답 생성 오류:', error);
