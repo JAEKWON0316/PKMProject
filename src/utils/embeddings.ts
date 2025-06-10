@@ -12,7 +12,6 @@ if (typeof window === 'undefined') {
       apiKey: process.env.OPENAI_API_KEY,
     });
   } catch (error) {
-    console.warn('OpenAI 클라이언트 초기화 실패:', error);
     openai = null;
   }
 }
@@ -61,13 +60,11 @@ export async function getEmbedding(text: string): Promise<number[]> {
   try {
     // 클라이언트 측에서 실행 중인 경우 가짜 임베딩 반환
     if (typeof window !== 'undefined') {
-      console.log('클라이언트 측에서 가짜 임베딩 생성');
       return generateFakeEmbedding(text);
     }
     
     // 서버 측에서 실행 중이지만 OpenAI 인스턴스가 없는 경우
     if (!openai) {
-      console.warn('OpenAI 클라이언트가 초기화되지 않았습니다. 가짜 임베딩을 사용합니다.');
       return generateFakeEmbedding(text);
     }
     
@@ -75,19 +72,13 @@ export async function getEmbedding(text: string): Promise<number[]> {
     const sanitizedText = sanitizeText(text);
     
     if (!sanitizedText) {
-      console.warn('임베딩 생성을 위한 텍스트가 비어있습니다.');
-      // 빈 텍스트의 경우 기본 임베딩 값 반환 (모두 0)
       return Array(1536).fill(0);
     }
     
     // 텍스트가 너무 짧은 경우 (1-2글자) 처리
     if (sanitizedText.length < 3) {
-      console.warn(`임베딩 생성을 위한 텍스트가 너무 짧습니다: "${sanitizedText}"`);
-      // 짧은 텍스트 확장 (의미를 유지하면서 컨텍스트 추가)
       const expandedText = `질문: ${sanitizedText} 에 대한 정보를 찾습니다.`;
-      console.log(`확장된 텍스트로 임베딩 생성: "${expandedText}"`);
       
-      // OpenAI 인스턴스 체크는 위에서 했으므로 안전하게 사용 가능
       const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: expandedText,
@@ -104,9 +95,6 @@ export async function getEmbedding(text: string): Promise<number[]> {
     
     return response.data[0].embedding;
   } catch (error) {
-    console.error('임베딩 생성 중 오류:', error);
-    
-    // 오류 발생 시 가짜 임베딩 반환
     return generateFakeEmbedding(text);
   }
 }

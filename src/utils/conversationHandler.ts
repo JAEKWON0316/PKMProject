@@ -40,9 +40,6 @@ export async function saveConversation(
   }
 ): Promise<SaveResult> {
   try {
-    console.log(`대화 저장 시작: ${url}`);
-    console.log('저장 옵션:', JSON.stringify(options));
-
     // URL 유효성 검사
     if (!isValidChatGPTUrl(url)) {
       throw new Error('유효한 ChatGPT 공유 URL이 아닙니다.');
@@ -58,7 +55,6 @@ export async function saveConversation(
       existingSession = session;
 
       if (duplicate) {
-        console.log(`URL 중복 감지: ${url}`);
         // 중복 URL이지만 ID와 함께 반환하여 성공 페이지로 리다이렉트할 수 있도록 함
         const savedToObsidian = existingSession?.metadata?.savedToObsidian === true;
         
@@ -74,7 +70,6 @@ export async function saveConversation(
     }
 
     // 크롤링 수행
-    console.log('대화 크롤링 중...');
     const result = await parseChatGPTLink(url);
     const { conversation, rawText } = result;
 
@@ -83,7 +78,6 @@ export async function saveConversation(
     }
 
     // 요약 생성
-    console.log('대화 요약 생성 중...');
     const summaryResult = conversation.messages.length > 20
       ? await summarizeLongConversation(conversation.title, conversation.messages)
       : await summarizeConversation(conversation.title, conversation.messages);
@@ -95,7 +89,6 @@ export async function saveConversation(
 
     // Supabase에 저장 (벡터 검색 DB)
     if (options.saveToSupabase) {
-      console.log('Supabase에 저장 중...');
       saveResults.supabase = await insertChatSession({
         title: conversation.title,
         url,
@@ -118,7 +111,6 @@ export async function saveConversation(
 
     // Obsidian에 저장 (배포 환경에서는 비활성화)
     if (options.saveToObsidian && !isVercelEnv()) {
-      console.log('Obsidian에 저장 중...');
       const isRerun = options.skipDuplicateCheck || false;
       saveResults.obsidian = await saveToObsidian(
         conversation,
@@ -128,7 +120,7 @@ export async function saveConversation(
         isRerun
       );
     } else if (options.saveToObsidian && isVercelEnv()) {
-      console.log('배포 환경에서는 Obsidian 저장이 비활성화되었습니다.');
+      // 배포 환경에서는 Obsidian 저장이 비활성화되었습니다.
     }
 
     return {
@@ -141,7 +133,6 @@ export async function saveConversation(
       duplicate: false
     };
   } catch (error) {
-    console.error('대화 저장 중 오류:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'

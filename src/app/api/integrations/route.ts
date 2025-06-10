@@ -15,12 +15,8 @@ export async function GET(request: NextRequest) {
     const userId = request.nextUrl.searchParams.get('userId');
     const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true';
     
-    console.log('Integrations API 호출 - 사용자 ID:', userId, '강제 새로고침:', forceRefresh);
-
     // 캐시 확인 (강제 새로고침이 아닌 경우)
     if (!forceRefresh && cachedData && Date.now() - cacheTimestamp < CACHE_TTL) {
-      console.log('캐시된 데이터 반환');
-      
       // 사용자별 데이터는 동적으로 계산
       if (userId && cachedData.sessions) {
         const userChatCount = cachedData.sessions.filter((session: any) => session.user_id === userId).length;
@@ -53,14 +49,13 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     
     if (!supabase) {
-      console.error('Supabase Admin 클라이언트를 초기화할 수 없습니다.');
       return NextResponse.json(
         { success: false, error: 'Supabase 연결에 실패했습니다.' },
         { status: 500 }
       );
     }
     
-    console.log('데이터베이스에서 새로운 데이터 조회...');
+    // 데이터베이스에서 새로운 데이터 조회...
     const startTime = Date.now();
     
     // 경량화: 메시지 필드를 제외하고 필요한 필드만 선택
@@ -70,7 +65,6 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (sessionsError) {
-      console.error('채팅 세션 조회 오류:', sessionsError);
       return NextResponse.json(
         { success: false, error: '데이터를 불러올 수 없습니다.' },
         { status: 500 }
@@ -129,7 +123,7 @@ export async function GET(request: NextRequest) {
     });
 
     const endTime = Date.now();
-    console.log(`데이터 처리 완료: ${endTime - startTime}ms, 세션 수: ${processedSessions.length}`);
+    // 데이터 처리 완료: ${endTime - startTime}ms, 세션 수: ${processedSessions.length}
 
     // 캐시 업데이트 (사용자별 정보 제외)
     cachedData = {
@@ -149,7 +143,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Integrations API 오류:', error);
     return NextResponse.json(
       { success: false, error: '서버 오류가 발생했습니다.' },
       { status: 500 }

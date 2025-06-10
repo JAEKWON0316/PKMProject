@@ -25,7 +25,6 @@ if (typeof window === 'undefined') {
       apiKey: process.env.OPENAI_API_KEY,
     });
   } catch (error) {
-    console.warn('OpenAI 클라이언트 초기화 실패:', error);
     openai = null;
   }
 }
@@ -39,13 +38,11 @@ export async function classifySessionCategory(session: Partial<ChatSession>): Pr
   try {
     // 클라이언트 측에서 실행 중인 경우 기본 카테고리 반환
     if (typeof window !== 'undefined') {
-      console.log('클라이언트 측에서는 분류를 수행할 수 없습니다. 기본 카테고리를 반환합니다.');
       return "기타";
     }
     
     // OpenAI 클라이언트가 초기화되지 않은 경우
     if (!openai) {
-      console.warn('OpenAI 클라이언트가 초기화되지 않았습니다. 환경 변수를 확인하세요.');
       return "기타";
     }
     
@@ -83,7 +80,6 @@ export async function classifySessionCategory(session: Partial<ChatSession>): Pr
     // 카테고리 검증 및 반환
     return validateCategory(suggestedCategory);
   } catch (error) {
-    console.error("카테고리 분류 중 오류 발생:", error);
     return "기타"; // 오류 발생 시 기본 카테고리
   }
 }

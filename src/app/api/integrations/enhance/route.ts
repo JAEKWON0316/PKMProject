@@ -16,8 +16,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`${sessionIds.length}개 세션의 백그라운드 카테고리 개선 시작...`);
-
     // 백그라운드에서 카테고리 개선 실행
     const result = await enhanceSessionCategories(sessionIds);
 

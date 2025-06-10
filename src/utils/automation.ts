@@ -70,13 +70,11 @@ async function saveToFileSystem(
     // 마크다운 파일 저장 (Obsidian Vault에)
     const markdownFilePath = path.join(obsidianFolderPath, fileName);
     await writeFileAsync(markdownFilePath, markdownContent, 'utf8');
-    console.log(`마크다운 파일 저장 완료: ${markdownFilePath}`);
     
     // 원본 텍스트 저장 (Obsidian Vault에)
     const textFileName = fileName.replace('.md', '-original.txt');
     const textFilePath = path.join(obsidianFolderPath, textFileName);
     await writeFileAsync(textFilePath, rawText, 'utf8');
-    console.log(`원본 텍스트 파일 저장 완료: ${textFilePath}`);
     
     return { 
       success: true, 
@@ -113,7 +111,6 @@ export async function saveToObsidian(
       const { exists, session } = await checkUrlExists(url);
       
       if (exists) {
-        console.log(`URL이 이미 존재합니다: ${url}`);
         return { 
           success: true, 
           fileName: `${conversation.title.substring(0, 30)}.md (중복)`,
@@ -234,14 +231,11 @@ model: gpt-4.1-nano
         
         return { success: true, fileName, method: 'mcp' };
       } catch (mcpError) {
-        console.error('MCP 저장 실패, 파일 시스템으로 대체합니다:', mcpError);
         // MCP 실패 시 아래의 파일 시스템 방식으로 진행
       }
     }
     
     // MCP가 없거나 실패한 경우, 파일 시스템 사용하여 저장
-    console.log('MCP를 사용할 수 없습니다. 파일 시스템을 사용하여 저장합니다.');
-    
     // 파일 시스템에 저장 (URL 중복 여부 전달)
     const fileSystemResult = await saveToFileSystem(
       fileName,
@@ -261,7 +255,6 @@ model: gpt-4.1-nano
       duplicate: false
     };
   } catch (error) {
-    console.error('Obsidian 저장 중 오류:', error);
     // 오류가 발생해도 RAG 시스템 진행에는 영향을 주지 않도록 성공 상태 반환
     return { 
       success: true, 
@@ -307,7 +300,6 @@ export async function commitToGitHub(message: string = 'Update ChatGPT conversat
       return { success: true, result, method: 'mcp' };
     } else {
       // MCP를 사용할 수 없는 경우 로그만 남기고 성공으로 처리
-      console.log('GitHub MCP를 사용할 수 없습니다. 커밋 작업은 건너뜁니다.');
       return { 
         success: true, 
         method: 'skipped', 
@@ -315,7 +307,6 @@ export async function commitToGitHub(message: string = 'Update ChatGPT conversat
       };
     }
   } catch (error) {
-    console.error('GitHub 커밋 중 오류:', error);
     // 오류가 발생해도 RAG 시스템 진행에는 영향을 주지 않도록 성공 상태 반환
     return { 
       success: true, 

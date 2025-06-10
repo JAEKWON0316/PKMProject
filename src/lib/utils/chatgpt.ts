@@ -45,23 +45,20 @@ async function getChromiumPath() {
       // 존재하는 Chrome 경로 찾기
       for (const chromePath of localChromePaths) {
         if (fs.existsSync(chromePath)) {
-          console.log(`Using local Chrome at: ${chromePath}`);
           return chromePath;
         }
       }
       
-      console.log('No local Chrome installation found, using @sparticuz/chromium fallback');
+      return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     }
     
     // @sparticuz/chromium의 executablePath 함수를 사용하여 바이너리 경로 가져오기
     const execPath = await chromium.executablePath();
-    console.log(`Chromium executable path: ${execPath}`);
     
     // Windows에서 로컬 폴더 생성
     if (isWindows) {
       const localChromiumPath = path.join(process.cwd(), '.chromium');
       if (!fs.existsSync(localChromiumPath)) {
-        console.log(`Creating local Chromium directory: ${localChromiumPath}`);
         fs.mkdirSync(localChromiumPath, { recursive: true });
       }
     }
@@ -73,13 +70,10 @@ async function getChromiumPath() {
     
     return execPath;
   } catch (error) {
-    console.error('Error getting Chromium path:', error);
-    
     // 오류 발생 시 로컬 Chrome 시도
     if (isWindows) {
       const defaultChromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
       if (fs.existsSync(defaultChromePath)) {
-        console.log(`Fallback to local Chrome: ${defaultChromePath}`);
         return defaultChromePath;
       }
     }
@@ -96,24 +90,14 @@ export async function parseChatGPTLink(url: string): Promise<{
   rawHtml: string; 
   rawText: string;
 }> {
-  console.log(`Scraping ChatGPT conversation from URL: ${url}`);
-  
-  // let browser: Browser | null = null;
   let browser: any = null;
   let retryCount = 0;
   const maxRetries = 3;
   
   try {
-    // 브라우저 경로 디버깅 로그
-    console.log('=== Browser Path Debug Info ===');
-    console.log('CHROMIUM_PATH:', process.env.CHROMIUM_PATH);
-
     // puppeteer-core + @sparticuz/chromium 사용하여 브라우저 시작
-    console.log('Launching browser with @sparticuz/chromium...');
-
     // 환경에 맞는 Chromium 경로 가져오기
     const executablePath = await getChromiumPath();
-    console.log(`Using Chromium at: ${executablePath}`);
 
     // 브라우저 실행 옵션 강화
     const options = {
@@ -147,20 +131,16 @@ export async function parseChatGPTLink(url: string): Promise<{
     while (retryCount < maxRetries) {
       try {
         // 브라우저 실행
-        console.log(`Attempting to launch browser (attempt ${retryCount + 1}/${maxRetries})...`);
         browser = await puppeteer.launch(options);
-        console.log('Browser launched successfully');
         break; // 성공하면 루프 종료
       } catch (launchError) {
         retryCount++;
-        console.error(`Browser launch failed (attempt ${retryCount}/${maxRetries}):`, launchError);
         
         if (retryCount >= maxRetries) {
           throw new Error(`Failed to launch browser after ${maxRetries} attempts: ${launchError}`);
         }
         
         // 재시도 전 잠시 대기
-        console.log(`Waiting ${retryCount * 2}s before retry...`);
         await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
       }
     }
@@ -169,9 +149,7 @@ export async function parseChatGPTLink(url: string): Promise<{
     await new Promise(resolve => setTimeout(resolve, 1500));
       
     // 페이지 생성
-    console.log('Creating page...');
     const page = await browser.newPage();
-    console.log('Page created successfully');
     
     // 페이지 설정
     await page.setDefaultNavigationTimeout(PAGE_NAVIGATION_TIMEOUT); // 90초
@@ -190,7 +168,6 @@ export async function parseChatGPTLink(url: string): Promise<{
     while (!pageLoadSuccess && retryCount < maxRetries) {
       try {
         // 페이지 로드
-        console.log(`Loading URL (attempt ${retryCount + 1}/${maxRetries}): ${url}`);
         const response = await page.goto(url, { 
           waitUntil: ['load', 'domcontentloaded', 'networkidle0'], 
           timeout: PAGE_NAVIGATION_TIMEOUT
@@ -200,24 +177,20 @@ export async function parseChatGPTLink(url: string): Promise<{
           throw new Error(`Failed to load page: ${response ? response.status() : 'No response'}`);
         }
         
-        console.log(`Page loaded successfully with status: ${response.status()}`);
         pageLoadSuccess = true;
       } catch (navigationError) {
         retryCount++;
-        console.error(`Page navigation failed (attempt ${retryCount}/${maxRetries}):`, navigationError);
         
         if (retryCount >= maxRetries) {
           throw new Error(`Failed to load page after ${maxRetries} attempts: ${navigationError}`);
         }
         
         // 재시도 전 잠시 대기 
-        console.log(`Waiting ${retryCount * 3}s before retry...`);
         await new Promise(resolve => setTimeout(resolve, retryCount * 3000));
       }
     }
     
     // 페이지가 완전히 렌더링될 때까지 대기
-    console.log(`Waiting ${CONTENT_RENDER_WAIT_TIME/1000}s for content to render...`);
     await page.waitForTimeout(CONTENT_RENDER_WAIT_TIME);
     
     // 페이지 안정화를 위한 추가 대기
@@ -228,19 +201,15 @@ export async function parseChatGPTLink(url: string): Promise<{
       );
     } catch (waitError) {
       // 타임아웃 발생해도 계속 진행
-      console.warn('Warning: Timed out waiting for page to stabilize, continuing anyway');
     }
     
     // 전체 페이지 HTML 가져오기
     const rawHtml = await page.content();
-    console.log(`Raw HTML length: ${rawHtml.length} characters`);
     
     // 페이지 텍스트 콘텐츠 가져오기
     const rawText = await page.evaluate(() => document.body.innerText);
-    console.log(`Raw text length: ${rawText.length} characters`);
     
     // 대화 내용 추출 (메시지 구조화)
-    console.log('Extracting conversation data...');
     const conversationData = await extractConversationData(page);
 
     // 대화 객체 생성
@@ -257,13 +226,9 @@ export async function parseChatGPTLink(url: string): Promise<{
     if (conversation.messages.length === 0) {
       throw new Error('대화 내용을 추출할 수 없습니다.');
     }
-
-    console.log(`Extracted conversation: "${conversation.title}" with ${conversation.messages.length} messages`);
     
     // 모든 작업이 완료된 후 브라우저 종료
-    console.log('Closing browser...');
     await browser.close();
-    console.log('Browser closed successfully');
     
     return {
       conversation,
@@ -271,7 +236,6 @@ export async function parseChatGPTLink(url: string): Promise<{
       rawText
     };
   } catch (error) {
-    console.error('Error during conversation extraction:', error);
     throw error instanceof Error 
       ? error 
       : new Error(`대화 추출 중 오류 발생: ${String(error)}`);
@@ -306,16 +270,6 @@ async function extractConversationData(page: any): Promise<{
   }; 
 }> {
   return await page.evaluate(() => {
-    console.log('Starting conversation extraction...');
-      
-    // 디버깅 정보
-    const pageInfo = {
-      url: window.location.href,
-      title: document.title,
-      bodyText: document.body.innerText.length,
-    };
-    console.log('Page info:', JSON.stringify(pageInfo));
-      
     // 제목 추출 (여러 방법 시도)
     let title = '';
     
@@ -352,12 +306,9 @@ async function extractConversationData(page: any): Promise<{
       title = 'ChatGPT Conversation ' + new Date().toLocaleString();
     }
     
-    console.log(`Title extracted: ${title}`);
-    
     // 페이지 전체에서 모든 대화 요소 직접 추출 시도
     // 1. assistant 메시지 찾기 (여러 선택자 시도)
     let assistantElements = document.querySelectorAll('[data-message-author-role="assistant"]');
-    console.log(`[DEBUG] Found ${assistantElements.length} assistant elements by attribute`);
     
     // 보조 선택자 시도
     if (assistantElements.length === 0) {
@@ -373,7 +324,6 @@ async function extractConversationData(page: any): Promise<{
       for (const selector of potentialSelectors) {
         const elements = document.querySelectorAll(selector);
         if (elements.length > 0) {
-          console.log(`[DEBUG] Found ${elements.length} assistant elements with selector: ${selector}`);
           assistantElements = elements;
           break;
         }
@@ -383,7 +333,6 @@ async function extractConversationData(page: any): Promise<{
     // 2. user 메시지 찾기 (여러 방법 시도)
     // 명시적인 user 역할 속성 찾기
     let userElements = Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
-    console.log(`[DEBUG] Found ${userElements.length} user elements by attribute`);
     
     // 대안 선택자 시도
     if (userElements.length === 0) {
@@ -398,14 +347,11 @@ async function extractConversationData(page: any): Promise<{
       for (const selector of potentialUserSelectors) {
         const elements = document.querySelectorAll(selector);
         if (elements.length > 0) {
-          console.log(`[DEBUG] Found ${elements.length} user elements with selector: ${selector}`);
           userElements = Array.from(elements);
           break;
         }
       }
     }
-    
-    console.log(`[DEBUG] Final count - Assistant: ${assistantElements.length}, User: ${userElements.length}`);
     
     // 대화 수집
     let messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
@@ -439,9 +385,6 @@ async function extractConversationData(page: any): Promise<{
       // DOM 순서대로 정렬
       conversationElements.sort((a, b) => a.position - b.position);
       
-      console.log(`[DEBUG] Sorted conversation elements: ${conversationElements.length}`);
-      console.log(`[DEBUG] First few roles: ${conversationElements.slice(0, 3).map(e => e.role).join(', ')}`);
-      
       // 정렬된 요소에서 대화 내용 추출
       const extractedMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
       
@@ -461,21 +404,12 @@ async function extractConversationData(page: any): Promise<{
         }
       }
       
-      console.log(`[DEBUG] Extracted ${extractedMessages.length} messages`);
-      if (extractedMessages.length > 0) {
-        console.log(`[DEBUG] First message role: ${extractedMessages[0].role}`);
-        console.log(`[DEBUG] First message preview: ${extractedMessages[0].content.substring(0, 30)}...`);
-      }
-      
       // 최소한 하나의 사용자와 어시스턴트 메시지가 있는지 확인
       const hasUser = extractedMessages.some(m => m.role === 'user');
       const hasAssistant = extractedMessages.some(m => m.role === 'assistant');
       
       if (hasUser && hasAssistant && extractedMessages.length >= 2) {
-        console.log(`[DEBUG] Found valid conversation with ${extractedMessages.length} messages`);
         messages = extractedMessages;
-      } else {
-        console.log(`[DEBUG] Extracted messages don't form a valid conversation (user: ${hasUser}, assistant: ${hasAssistant})`);
       }
     }
     
@@ -555,8 +489,6 @@ async function extractConversationData(page: any): Promise<{
     if (messages.length > 0 && messages[0].role !== 'user') {
       // ChatGPT 대화는 항상 사용자 질문으로 시작해야 함
       // 대화가 어시스턴트로 시작하면 첫 메시지를 사용자 메시지로 변경
-      console.log('첫 메시지가 사용자 메시지가 아닙니다. 대화 구조를 수정합니다.');
-      
       // 새 대화 구조 생성
       const alternatingMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
       

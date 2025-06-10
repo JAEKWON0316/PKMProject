@@ -78,7 +78,6 @@ export async function checkUrlExists(url: string): Promise<{ exists: boolean; se
       .limit(1);
     
     if (error) {
-      console.error('URL 중복 확인 중 오류:', error);
       throw error;
     }
     
@@ -88,7 +87,6 @@ export async function checkUrlExists(url: string): Promise<{ exists: boolean; se
     
     return { exists: false };
   } catch (error) {
-    console.error('URL 중복 확인 중 오류:', error);
     // 오류 발생 시 안전하게 중복이 아닌 것으로 처리
     return { exists: false };
   }
@@ -122,8 +120,6 @@ export async function insertChatSession({
       const { exists, session } = await checkUrlExists(url);
       
       if (exists) {
-        console.log(`URL이 이미 존재합니다: ${url}`);
-        console.log(`기존 세션 정보: ${session?.title} (${session?.id})`);
         return { 
           id: session?.id, 
           duplicate: true, 
@@ -141,8 +137,6 @@ export async function insertChatSession({
     // AI 기반 카테고리 자동 분류 시도 (서버 측에서만)
     if (typeof window === 'undefined') {
       try {
-        console.log('대화 세션 카테고리 자동 분류 시도 중...');
-        
         // 분류할 세션 객체 준비
         const sessionToClassify: Partial<ChatSession> = {
           title: sanitizedTitle,
@@ -153,7 +147,6 @@ export async function insertChatSession({
         
         // 자동 카테고리 분류 실행
         const category = await classifySessionCategory(sessionToClassify);
-        console.log(`카테고리 분류 결과: ${category}`);
         
         // 기존 메타데이터에 카테고리 추가
         sanitizedMetadata = {
@@ -161,7 +154,6 @@ export async function insertChatSession({
           mainCategory: category
         };
       } catch (classifyError) {
-        console.error('카테고리 자동 분류 중 오류:', classifyError);
         // 오류 시 기본 카테고리 설정
         if (!sanitizedMetadata.mainCategory) {
           sanitizedMetadata.mainCategory = '기타';
@@ -197,7 +189,6 @@ export async function insertChatSession({
     
     return { ...data, duplicate: false };
   } catch (error) {
-    console.error('대화 세션 저장 중 오류:', error);
     throw error;
   }
 }
@@ -215,7 +206,6 @@ export async function processAndInsertChunks(
     
     // 메시지를 청크로 분할
     const chunks = chunkMessages(sanitizedMessages);
-    console.log('🧱 분할된 청크:', chunks);
     
     // 각 청크에 대해 임베딩 생성 및 저장
     const chunkPromises = chunks.map(async (chunk) => {
@@ -249,14 +239,12 @@ export async function processAndInsertChunks(
         if (error) throw error;
         results.push(data);
       } catch (error) {
-        console.error(`청크 배치 ${i}/${chunksWithEmbeddings.length} 저장 중 오류:`, error);
         // 개별 청크 에러를 기록하되 전체 프로세스는 계속 진행
       }
     }
     
     return { success: true, count: chunksWithEmbeddings.length };
   } catch (error) {
-    console.error('청크 처리 및 저장 중 오류:', error);
     throw error;
   }
 }
@@ -282,7 +270,6 @@ export async function searchSimilarChunks(
     const isMetaQuestion = metaQuestionPatterns.some(pattern => pattern.test(query));
     
     if (isMetaQuestion) {
-      console.log('메타 질문 감지됨, 모든 세션의 요약 정보를 검색합니다.');
       // 메타 질문인 경우 가장 최근 세션의 요약 정보를 가져오기
       const { data: sessionData, error: sessionError } = await getSupabase()
         .from('chat_sessions')
@@ -291,7 +278,6 @@ export async function searchSimilarChunks(
         .limit(1);
       
       if (sessionError || !sessionData || sessionData.length === 0) {
-        console.warn('세션 데이터를 찾을 수 없습니다.');
         return [];
       }
       
@@ -308,20 +294,15 @@ export async function searchSimilarChunks(
       return [fakeChunk];
     }
     
-    console.log(`검색 쿼리: "${query}", 유사도 임계값: ${similarity}, 제한: ${limit}`);
-    
     // 쿼리 텍스트 정제
     const sanitizedQuery = sanitizeJsonData(query);
-    console.log(`정제된 쿼리: "${sanitizedQuery}"`);
     
     if (!sanitizedQuery || sanitizedQuery.trim().length < 2) {
-      console.warn('쿼리가 너무 짧거나 비어 있습니다');
       return [];
     }
     
     // 쿼리 텍스트 임베딩 생성
     const queryEmbedding = await getEmbedding(sanitizedQuery);
-    console.log(`임베딩 생성 완료: ${queryEmbedding.length} 차원`);
     
     // 유사한 청크 검색 (일반 클라이언트 사용 - 모든 데이터 접근 가능)
     const { data, error } = await getSupabase().rpc(
@@ -334,17 +315,13 @@ export async function searchSimilarChunks(
     );
     
     if (error) {
-      console.error('유사 청크 검색 오류:', error);
       throw error;
     }
-    
-    console.log(`검색된 청크 수: ${data?.length || 0}`);
     
     // 검색 결과가 없는 경우 유사도 임계값을 낮춰서 다시 시도 (2단계로 낮춤)
     if (!data || data.length === 0) {
       // 첫 번째 재시도: 임계값을 50% 낮춤
       const lowerThreshold = similarity * 0.5;
-      console.log(`결과가 없어 유사도 임계값을 ${lowerThreshold.toFixed(2)}로 낮춰 재시도`);
       
       const { data: retryData, error: retryError } = await getSupabase().rpc(
         'match_chunks',
@@ -356,14 +333,11 @@ export async function searchSimilarChunks(
       );
       
       if (retryError) {
-        console.error('낮은 임계값으로 재시도 중 오류:', retryError);
       } else if (retryData && retryData.length > 0) {
-        console.log(`낮은 임계값으로 ${retryData.length}개 청크 검색됨`);
         return retryData;
       } else {
         // 두 번째 재시도: 매우 낮은 임계값 (0.1)으로 시도
         const lowestThreshold = 0.1;
-        console.log(`결과가 여전히 없어 최저 임계값 ${lowestThreshold.toFixed(2)}로 재시도`);
         
         const { data: lastRetryData, error: lastRetryError } = await getSupabase().rpc(
           'match_chunks',
@@ -375,9 +349,7 @@ export async function searchSimilarChunks(
         );
         
         if (lastRetryError) {
-          console.error('최저 임계값으로 재시도 중 오류:', lastRetryError);
         } else if (lastRetryData && lastRetryData.length > 0) {
-          console.log(`최저 임계값으로 ${lastRetryData.length}개 청크 검색됨`);
           return lastRetryData;
         }
       }
@@ -385,7 +357,6 @@ export async function searchSimilarChunks(
     
     return data || [];
   } catch (error) {
-    console.error('유사 청크 검색 중 오류:', error);
     throw error;
   }
 }
@@ -417,13 +388,11 @@ export async function getAllChatSessions(): Promise<Partial<ChatSession>[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('채팅 세션 가져오기 오류:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('getAllChatSessions 오류:', error);
     return [];
   }
 }
@@ -440,13 +409,11 @@ export async function getUserChatSessions(userId: string): Promise<Partial<ChatS
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('사용자 채팅 세션 가져오기 오류:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('getUserChatSessions 오류:', error);
     return [];
   }
 }
@@ -498,7 +465,6 @@ export async function getAllChatSessionsWithUserCount(currentUserId: string | nu
       .order('created_at', { ascending: false });
 
     if (sessionsError) {
-      console.error('채팅 세션 가져오기 오류:', sessionsError);
       return { sessions: [], userChatCount: 0 };
     }
 
@@ -513,7 +479,6 @@ export async function getAllChatSessionsWithUserCount(currentUserId: string | nu
       userChatCount
     };
   } catch (error) {
-    console.error('getAllChatSessionsWithUserCount 오류:', error);
     return { sessions: [], userChatCount: 0 };
   }
 }
@@ -528,7 +493,6 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
   categoryCounts: Record<string, number>;
 }> {
   try {
-    console.log('경량 세션 데이터 조회 시작...');
     const startTime = Date.now();
 
     // 메시지를 제외한 필수 필드만 선택하여 속도 향상
@@ -538,7 +502,6 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
       .order('created_at', { ascending: false });
 
     if (sessionsError) {
-      console.error('경량 채팅 세션 가져오기 오류:', sessionsError);
       return { sessions: [], userChatCount: 0, categoryCounts: {} };
     }
 
@@ -570,7 +533,6 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
           messageCount = Object.keys(session.messages).length;
         }
       } catch (err) {
-        console.warn(`세션 ${session.id}의 메시지 개수 계산 오류:`, err);
         messageCount = 0;
       }
 
@@ -634,7 +596,6 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
     });
 
     const endTime = Date.now();
-    console.log(`경량 세션 데이터 조회 완료: ${endTime - startTime}ms, 세션 수: ${sessionWithMessageCounts.length}`);
 
     return {
       sessions: sessionWithMessageCounts,
@@ -642,7 +603,6 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
       categoryCounts
     };
   } catch (error) {
-    console.error('getAllChatSessionsLightweight 오류:', error);
     return { sessions: [], userChatCount: 0, categoryCounts: {} };
   }
 }
@@ -656,8 +616,6 @@ export async function enhanceSessionCategories(sessionIds: string[]): Promise<{
   errors: number;
 }> {
   try {
-    console.log(`${sessionIds.length}개 세션의 카테고리 개선 시작...`);
-    
     let enhanced = 0;
     let errors = 0;
     
@@ -699,13 +657,11 @@ export async function enhanceSessionCategories(sessionIds: string[]): Promise<{
                 enhanced++;
               }
             } catch (err) {
-              console.error(`세션 ${session.id} 카테고리 개선 실패:`, err);
               errors++;
             }
           }
         }
       } catch (batchError) {
-        console.error(`배치 ${i}-${i + batchSize} 처리 실패:`, batchError);
         errors += batch.length;
       }
       
@@ -715,10 +671,8 @@ export async function enhanceSessionCategories(sessionIds: string[]): Promise<{
       }
     }
     
-    console.log(`카테고리 개선 완료: ${enhanced}개 개선, ${errors}개 오류`);
     return { enhanced, errors };
   } catch (error) {
-    console.error('enhanceSessionCategories 오류:', error);
     return { enhanced: 0, errors: sessionIds.length };
   }
 }
@@ -806,7 +760,6 @@ export async function toggleChatSessionFavorite(
 
     return { success: true, favorite };
   } catch (error) {
-    console.error('toggleChatSessionFavorite 오류:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.' 

@@ -52,7 +52,6 @@ export async function sendOtpCode(email: string): Promise<AuthResult> {
       isNewUser: true // 모든 사용자가 코드 입력 모드
     }
   } catch (error) {
-    console.error('OTP 코드 전송 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -90,7 +89,6 @@ export async function verifyOtpCode(email: string, token: string): Promise<AuthR
       try {
         await syncUserProfile(data.user)
       } catch (profileError) {
-        console.error('프로필 upsert 오류:', profileError)
       }
     }
 
@@ -100,7 +98,6 @@ export async function verifyOtpCode(email: string, token: string): Promise<AuthR
       user: data.user
     }
   } catch (error) {
-    console.error('OTP 코드 검증 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -127,7 +124,6 @@ export async function signInWithPassword(email: string, password: string): Promi
         try {
           await syncUserProfile(customResult.user)
         } catch (profileError) {
-          console.error('프로필 upsert 오류:', profileError)
         }
       }
       return customResult
@@ -138,18 +134,15 @@ export async function signInWithPassword(email: string, password: string): Promi
       try {
         await syncUserProfile(data.user)
       } catch (profileError) {
-        console.error('프로필 upsert 오류:', profileError)
       }
     }
 
-    console.log('✅ 기본 비밀번호 로그인 성공:', data.user?.email)
     return {
       success: true,
       message: '로그인 성공!',
       user: data.user
     }
   } catch (error) {
-    console.error('비밀번호 로그인 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -186,7 +179,6 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       message: 'Google 로그인을 진행합니다...'
     }
   } catch (error) {
-    console.error('Google OAuth 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -229,7 +221,6 @@ export async function signUpWithOtp(signUpData: SignUpData): Promise<AuthResult>
       isNewUser: true
     }
   } catch (error) {
-    console.error('OTP 회원가입 오류:', error)
     sessionStorage.removeItem('pendingSignUp')
     return {
       success: false,
@@ -270,13 +261,10 @@ export async function completeSignUpWithOtp(email: string, token: string): Promi
       })
 
       if (updateError) {
-        console.error('Auth 비밀번호 업데이트 오류:', updateError)
         // 실패해도 계속 진행 (OTP 로그인은 성공했으므로)
       } else {
-        console.log('✅ Auth 테이블에 비밀번호 업데이트 완료')
       }
     } catch (authError) {
-      console.error('Auth 업데이트 실패:', authError)
       // 실패해도 계속 진행
     }
 
@@ -291,7 +279,6 @@ export async function completeSignUpWithOtp(email: string, token: string): Promi
       })
 
     if (profileError) {
-      console.error('프로필 저장 오류:', profileError)
       // 저장에 실패해도 OTP 로그인은 성공으로 처리
     }
 
@@ -304,7 +291,6 @@ export async function completeSignUpWithOtp(email: string, token: string): Promi
       user: otpResult.user
     }
   } catch (error) {
-    console.error('OTP 회원가입 완료 오류:', error)
     sessionStorage.removeItem('pendingSignUp')
     return {
       success: false,
@@ -339,7 +325,6 @@ export async function signInWithCustomPassword(email: string, password: string):
         refresh_token: result.session.refresh_token
       })
       if (error) {
-        console.error('❌ 세션 설정 실패:', error)
         return {
           success: false,
           message: '세션 설정에 실패했습니다.',
@@ -351,7 +336,6 @@ export async function signInWithCustomPassword(email: string, password: string):
         try {
           await syncUserProfile(data.user)
         } catch (profileError) {
-          console.error('프로필 upsert 오류:', profileError)
         }
       }
       return {
@@ -372,7 +356,6 @@ export async function signInWithCustomPassword(email: string, password: string):
           try {
             await syncUserProfile(result.user)
           } catch (profileError) {
-            console.error('프로필 upsert 오류:', profileError)
           }
         }
         return {
@@ -387,7 +370,6 @@ export async function signInWithCustomPassword(email: string, password: string):
           try {
             await syncUserProfile(result.user)
           } catch (profileError) {
-            console.error('프로필 upsert 오류:', profileError)
           }
         }
         return {
@@ -404,7 +386,6 @@ export async function signInWithCustomPassword(email: string, password: string):
         refresh_token: result.session.refresh_token
       })
       if (error) {
-        console.error('❌ 세션 설정 실패:', error)
         return {
           success: false,
           message: '세션 설정에 실패했습니다.',
@@ -416,7 +397,6 @@ export async function signInWithCustomPassword(email: string, password: string):
         try {
           await syncUserProfile(data.user)
         } catch (profileError) {
-          console.error('프로필 upsert 오류:', profileError)
         }
       }
       return {
@@ -431,7 +411,6 @@ export async function signInWithCustomPassword(email: string, password: string):
       user: result.user
     }
   } catch (error) {
-    console.error('비밀번호 로그인 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -473,7 +452,6 @@ export async function sendPasswordResetOtp(email: string): Promise<AuthResult> {
       message: result.message
     }
   } catch (error) {
-    console.error('비밀번호 재설정 OTP 발송 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -518,7 +496,6 @@ export async function verifyPasswordResetOtp(email: string, token: string): Prom
       user: result.user
     }
   } catch (error) {
-    console.error('비밀번호 재설정 OTP 검증 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -598,7 +575,6 @@ export async function resetPasswordWithOtp(email: string, newPassword: string): 
       message: '비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요.'
     }
   } catch (error) {
-    console.error('비밀번호 재설정 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -635,7 +611,6 @@ export async function signOut(): Promise<AuthResult> {
       message: '로그아웃되었습니다.'
     }
   } catch (error) {
-    console.error('로그아웃 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',
@@ -650,13 +625,11 @@ export async function getCurrentUser() {
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) {
-      console.error('사용자 정보 가져오기 오류:', error)
       return null
     }
 
     return user
   } catch (error) {
-    console.error('getCurrentUser 오류:', error)
     return null
   }
 }
@@ -667,13 +640,11 @@ export async function getSession() {
     const { data: { session }, error } = await supabase.auth.getSession()
     
     if (error) {
-      console.error('세션 가져오기 오류:', error)
       return null
     }
 
     return session
   } catch (error) {
-    console.error('getSession 오류:', error)
     return null
   }
 }
@@ -693,13 +664,11 @@ export async function getUserProfile(userId: string) {
       .single()
 
     if (error) {
-      console.error('프로필 가져오기 오류:', error)
       return null
     }
 
     return data
   } catch (error) {
-    console.error('getUserProfile 오류:', error)
     return null
   }
 }
@@ -731,7 +700,6 @@ export async function updateUserProfile(userId: string, updates: {
       data
     }
   } catch (error) {
-    console.error('프로필 업데이트 오류:', error)
     return {
       success: false,
       message: '네트워크 오류가 발생했습니다.',

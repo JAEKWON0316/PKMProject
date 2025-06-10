@@ -57,9 +57,6 @@ export default function IntegrationsClient() {
       setLoading(true)
       setError(null)
       
-      console.log('🚀 데이터 로딩 시작...')
-      const startTime = Date.now()
-      
       // 클라이언트에서 직접 조회
       const result = await getAllChatSessionsLightweight(user?.id)
       
@@ -72,18 +69,12 @@ export default function IntegrationsClient() {
           .from('profiles')
           .select('id, full_name')
           .in('id', userIds)
-        console.log('userIds:', userIds)
-        console.log('userRows:', userRows)
-        console.log('userError:', userError)
         if (userError) {
           throw userError
         }
         usersList = userRows || []
       }
       setUsers(usersList)
-      
-      const endTime = Date.now()
-      console.log(`⚡ 로딩 완료: ${endTime - startTime}ms`)
       
       setData({
         sessions: result.sessions,
@@ -92,14 +83,7 @@ export default function IntegrationsClient() {
         isAuthenticated: !!user?.id
       })
       
-      console.log('📊 로드된 데이터:', {
-        총세션수: result.sessions.length,
-        사용자대화수: result.userChatCount,
-        카테고리수: Object.keys(result.categoryCounts).length
-      })
-      
     } catch (err) {
-      console.error('데이터 로딩 오류:', err)
       setError(err instanceof Error ? err.message : '데이터를 불러올 수 없습니다.')
     } finally {
       setLoading(false)

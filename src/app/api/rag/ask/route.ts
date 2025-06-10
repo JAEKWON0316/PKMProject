@@ -20,7 +20,6 @@ export async function POST(request: Request): Promise<Response> {
     }
     
     const { query, similarity = 0.7, limit = 5 } = body;
-    console.log(`RAG 질의 처리: "${query}"`);
     
     // RAG 응답 생성
     try {
