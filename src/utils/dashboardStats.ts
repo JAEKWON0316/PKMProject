@@ -3,6 +3,8 @@
  * integrations 페이지의 데이터 구조와 일관성 유지
  */
 
+const FAQ_SESSION_ID = '1129f3aa-2e75-43a2-9cf0-6d08526cbcfb';
+
 // 타입 정의 (기존 구조와 일관성 유지)
 export interface ChatSession {
   id: string;
@@ -58,7 +60,9 @@ export interface RecentActivity {
  * 사용자의 전체 통계를 계산합니다
  */
 export function calculateUserStats(sessions: Partial<ChatSession>[]): UserStats {
-  if (!sessions || sessions.length === 0) {
+  // FAQ 세션 제외
+  const filteredSessions = sessions.filter(session => session.id !== FAQ_SESSION_ID);
+  if (!filteredSessions || filteredSessions.length === 0) {
     return {
       totalChats: 0,
       totalCategories: 0,
@@ -70,13 +74,13 @@ export function calculateUserStats(sessions: Partial<ChatSession>[]): UserStats 
   }
 
   // 기본 통계 계산
-  const totalChats = sessions.length;
+  const totalChats = filteredSessions.length;
   
   // 카테고리 분포 계산
   const categoryMap = new Map<string, number>();
   let totalMessages = 0;
   
-  sessions.forEach(session => {
+  filteredSessions.forEach(session => {
     const category = session.metadata?.mainCategory || '기타';
     categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
     
@@ -101,13 +105,13 @@ export function calculateUserStats(sessions: Partial<ChatSession>[]): UserStats 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   
-  const recentActivityCount = sessions.filter(session => {
+  const recentActivityCount = filteredSessions.filter(session => {
     const createdAt = new Date(session.created_at || '');
     return createdAt >= sevenDaysAgo;
   }).length;
 
   // 활동 연속일 수 계산 (간단한 버전)
-  const activityStreak = calculateActivityStreak(sessions);
+  const activityStreak = calculateActivityStreak(filteredSessions);
 
   return {
     totalChats,
@@ -123,8 +127,9 @@ export function calculateUserStats(sessions: Partial<ChatSession>[]): UserStats 
  * 카테고리별 분포를 계산합니다
  */
 export function getCategoryDistribution(sessions: Partial<ChatSession>[]): CategoryDistribution {
+  const filteredSessions = sessions.filter(session => session.id !== FAQ_SESSION_ID);
   const distribution: CategoryDistribution = {};
-  const totalChats = sessions.length;
+  const totalChats = filteredSessions.length;
 
   if (totalChats === 0) {
     return distribution;
@@ -136,7 +141,7 @@ export function getCategoryDistribution(sessions: Partial<ChatSession>[]): Categ
     lastActivity: string;
   }>();
 
-  sessions.forEach(session => {
+  filteredSessions.forEach(session => {
     const category = session.metadata?.mainCategory || '기타';
     const createdAt = session.created_at || '';
     
@@ -222,7 +227,8 @@ export function getActivityTrend(sessions: Partial<ChatSession>[]): ActivityTren
  * 최근 활동 목록을 가져옵니다
  */
 export function getRecentActivity(sessions: Partial<ChatSession>[], limit: number = 5): RecentActivity[] {
-  const recentSessions = [...sessions]
+  const filteredSessions = sessions.filter(session => session.id !== FAQ_SESSION_ID);
+  const recentSessions = [...filteredSessions]
     .sort((a, b) => {
       const dateA = new Date(a.created_at || '').getTime();
       const dateB = new Date(b.created_at || '').getTime();

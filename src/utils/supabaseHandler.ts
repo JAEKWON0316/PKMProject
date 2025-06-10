@@ -4,6 +4,8 @@ import { getEmbedding, chunkMessages } from './embeddings';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { classifySessionCategory } from './categoryClassifier';
 
+const FAQ_SESSION_ID = '1129f3aa-2e75-43a2-9cf0-6d08526cbcfb';
+
 // 일반 클라이언트 (RLS 적용) - lib/supabase.ts의 싱글톤 사용
 function getSupabase(): SupabaseClient {
   return getSupabaseClient();
@@ -249,15 +251,40 @@ export async function processAndInsertChunks(
   }
 }
 
+function preprocessQuery(query: string): string {
+  // 10자 미만이거나, 물음표/의문문이 아니면 리포맷팅
+  if (query.length < 10 && !/[?]/.test(query)) {
+    return `${query}에 대해 알려줘`;
+  }
+  return query;
+}
+
+function generateQueryVariants(query: string): string[] {
+  // 짧은 키워드성 질문에 대해 다양한 패턴 생성
+  return [
+    query,
+    `${query}란?`,
+    `${query}이 뭐야?`,
+    `${query}에 대해 알려줘`,
+    `${query} 설명해줘`,
+    `${query}에 대한 설명`,
+    `${query}의 정의`,
+    `${query}에 관해 알려줘`
+  ];
+}
+
 /**
  * 유사한 청크를 검색합니다.
  */
 export async function searchSimilarChunks(
   query: string,
-  similarity: number = 0.3,  // 기본값 0.5에서 0.3으로 더 낮춤
+  similarity: number = 0.3,
   limit: number = 10
 ): Promise<ChatChunk[]> {
   try {
+    // 1. 질문 리포맷팅
+    const preprocessedQuery = preprocessQuery(query);
+
     // 메타 질문 감지 (예: "이 대화의 핵심이 뭐야?", "요약해줘" 등)
     const metaQuestionPatterns = [
       /이\s*대화의?\s*(핵심|요약|내용|주제)/i,
@@ -266,9 +293,7 @@ export async function searchSimilarChunks(
       /핵심\s*(내용|포인트)/i,
       /주요\s*(내용|포인트)/i
     ];
-    
-    const isMetaQuestion = metaQuestionPatterns.some(pattern => pattern.test(query));
-    
+    const isMetaQuestion = metaQuestionPatterns.some(pattern => pattern.test(preprocessedQuery));
     if (isMetaQuestion) {
       // 메타 질문인 경우 가장 최근 세션의 요약 정보를 가져오기
       const { data: sessionData, error: sessionError } = await getSupabase()
@@ -293,18 +318,13 @@ export async function searchSimilarChunks(
       
       return [fakeChunk];
     }
-    
-    // 쿼리 텍스트 정제
-    const sanitizedQuery = sanitizeJsonData(query);
-    
+
+    // 2. 벡터 검색
+    const sanitizedQuery = sanitizeJsonData(preprocessedQuery);
     if (!sanitizedQuery || sanitizedQuery.trim().length < 2) {
       return [];
     }
-    
-    // 쿼리 텍스트 임베딩 생성
     const queryEmbedding = await getEmbedding(sanitizedQuery);
-    
-    // 유사한 청크 검색 (일반 클라이언트 사용 - 모든 데이터 접근 가능)
     const { data, error } = await getSupabase().rpc(
       'match_chunks',
       {
@@ -313,49 +333,60 @@ export async function searchSimilarChunks(
         match_count: limit
       }
     );
-    
-    if (error) {
-      throw error;
+    if (error) throw error;
+    let filteredData = (data || []);
+    let avgSimilarity = 0;
+    if (filteredData.length > 0) {
+      avgSimilarity = filteredData.reduce((sum: number, c: ChatChunk) => sum + (c.similarity || 0), 0) / filteredData.length;
     }
-    
-    // 검색 결과가 없는 경우 유사도 임계값을 낮춰서 다시 시도 (2단계로 낮춤)
-    if (!data || data.length === 0) {
-      // 첫 번째 재시도: 임계값을 50% 낮춤
-      const lowerThreshold = similarity * 0.5;
-      
-      const { data: retryData, error: retryError } = await getSupabase().rpc(
-        'match_chunks',
-        {
-          query_embedding: queryEmbedding,
-          match_threshold: lowerThreshold,
-          match_count: limit
-        }
-      );
-      
-      if (retryError) {
-      } else if (retryData && retryData.length > 0) {
-        return retryData;
-      } else {
-        // 두 번째 재시도: 매우 낮은 임계값 (0.1)으로 시도
-        const lowestThreshold = 0.1;
-        
-        const { data: lastRetryData, error: lastRetryError } = await getSupabase().rpc(
-          'match_chunks',
-          {
-            query_embedding: queryEmbedding,
-            match_threshold: lowestThreshold,
-            match_count: limit
-          }
-        );
-        
-        if (lastRetryError) {
-        } else if (lastRetryData && lastRetryData.length > 0) {
-          return lastRetryData;
+    // 3. 벡터 검색 결과가 없거나 유사도가 낮으면 → 키워드 fallback (sessions + chunks)
+    if (filteredData.length === 0 || avgSimilarity < 0.25) {
+      // 여러 리포맷팅 패턴 생성 (짧은 질문일 때)
+      const variants = query.length < 10 ? generateQueryVariants(query) : [preprocessedQuery];
+      let sessionIds: string[] = [];
+      let keywordChunks: ChatChunk[] = [];
+      // 1) chat_sessions title/summary 키워드 fallback
+      for (const variant of variants) {
+        const keyword = variant.trim();
+        const { data: sessionRows } = await getSupabase()
+          .from('chat_sessions')
+          .select('id')
+          .or(`title.ilike.%${keyword}%,summary.ilike.%${keyword}%`);
+        if (sessionRows && sessionRows.length > 0) {
+          sessionIds.push(...sessionRows.map(row => row.id));
         }
       }
+      sessionIds = Array.from(new Set(sessionIds));
+      if (sessionIds.length > 0) {
+        const { data: chunkRows } = await getSupabase()
+          .from('chat_chunks')
+          .select('*')
+          .in('chat_session_id', sessionIds)
+          .order('chunk_index', { ascending: true });
+        if (chunkRows) {
+          keywordChunks.push(...chunkRows);
+        }
+      }
+      // 2) chat_chunks content 키워드 fallback
+      for (const variant of variants) {
+        const keyword = variant.trim();
+        const { data: chunkRows } = await getSupabase()
+          .from('chat_chunks')
+          .select('*')
+          .ilike('content', `%${keyword}%`)
+          .order('chunk_index', { ascending: true });
+        if (chunkRows) {
+          keywordChunks.push(...chunkRows);
+        }
+      }
+      // 벡터 검색 결과와 합쳐서 중복 제거
+      const allChunks = [...filteredData, ...keywordChunks];
+      const uniqueChunks = allChunks.filter((chunk, idx, arr) =>
+        arr.findIndex(c => c.id === chunk.id) === idx
+      );
+      return uniqueChunks.slice(0, limit);
     }
-    
-    return data || [];
+    return filteredData;
   } catch (error) {
     throw error;
   }
@@ -385,6 +416,7 @@ export async function getAllChatSessions(): Promise<Partial<ChatSession>[]> {
     const { data, error } = await getSupabase()
       .from('chat_sessions')
       .select('*')
+      .neq('id', FAQ_SESSION_ID)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -406,6 +438,7 @@ export async function getUserChatSessions(userId: string): Promise<Partial<ChatS
       .from('chat_sessions')
       .select('*')
       .eq('user_id', userId)
+      .neq('id', FAQ_SESSION_ID)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -462,6 +495,7 @@ export async function getAllChatSessionsWithUserCount(currentUserId: string | nu
     const { data: sessions, error: sessionsError } = await getSupabase()
       .from('chat_sessions')
       .select('*')
+      .neq('id', FAQ_SESSION_ID)
       .order('created_at', { ascending: false });
 
     if (sessionsError) {
@@ -499,6 +533,7 @@ export async function getAllChatSessionsLightweight(currentUserId: string | null
     const { data: sessions, error: sessionsError } = await getSupabase()
       .from('chat_sessions')
       .select('id, title, url, summary, metadata, created_at, user_id, messages')
+      .neq('id', FAQ_SESSION_ID)
       .order('created_at', { ascending: false });
 
     if (sessionsError) {

@@ -7,6 +7,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const FAQ_SESSION_ID = '1129f3aa-2e75-43a2-9cf0-6d08526cbcfb';
+
 /**
  * 질문에 대한 RAG 기반 응답을 생성합니다.
  * @param query 사용자 질문
@@ -37,7 +39,28 @@ export async function generateRagResponse(
       /뭐\s*해/i,
       /자기소개/i,
       /소개\s*해/i,
-      /반갑/i
+      /반갑/i,
+      /우와/i,
+      /멋지/i,
+      /고마워/i,
+      /대단해/i,
+      /똑똑/i,
+      /칭찬/i,
+      /재밌/i,
+      /웃겨/i,
+      /귀엽/i,
+      /고생/i,
+      /수고/i,
+      /감사/i,
+      /헐/i,
+      /와우/i,
+      /굿/i,
+      /최고/i,
+      /잘했어/i,
+      /잘한다/i,
+      /잘하네/i,
+      /잘하네요/i,
+      /잘하십니다/i
     ];
     
     const isConversational = conversationalPatterns.some(pattern => pattern.test(query));
@@ -130,7 +153,7 @@ export async function generateRagResponse(
     }).join('\n');
     
     // 4. 출처 정보 생성
-    const sources: RagSource[] = similarChunks.map((chunk: ChatChunk) => {
+    let sources: RagSource[] = similarChunks.map((chunk: ChatChunk) => {
       const session = sessions.find((s: ChatSession) => s.id === chunk.chat_session_id);
       return {
         id: session?.id,
@@ -139,6 +162,8 @@ export async function generateRagResponse(
         similarity: chunk.similarity
       };
     });
+    // FAQ 세션 소스 제외
+    sources = sources.filter(source => source.id !== FAQ_SESSION_ID);
     
     // 5. 프롬프트 생성
     const prompt = `

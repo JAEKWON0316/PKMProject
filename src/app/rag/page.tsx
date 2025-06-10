@@ -92,7 +92,14 @@ export default function RagPage() {
         hasSourceContext: rag.hasSourceContext === true ? true : false
       };
       let newMessages = [ragMessage];
-      if (fallback && fallback.answer && rag.answer !== fallback.answer) {
+      // rag.answer가 컨텍스트 없음 안내문이거나, rag와 fallback이 다르면 fallbackAnswer를 항상 추가
+      const isNoContext = (
+        typeof rag.answer === 'string' && (
+          rag.answer.includes('이 정보는 제공된 컨텍스트에 없습니다.') ||
+          rag.answer.includes('관련 정보를 찾을 수 없습니다.')
+        )
+      ) || (rag.sources && rag.sources.length === 0);
+      if (fallback && fallback.answer && (rag.answer !== fallback.answer || isNoContext)) {
         newMessages.push({
           id: (baseId + 1).toString(),
           role: 'assistant',
@@ -242,7 +249,7 @@ export default function RagPage() {
                   </motion.h3>
                   {/* 예시 질문 버튼: 좌측 하단에 고정 */}
                   <div className="absolute left-1 bottom-1 flex flex-row items-end gap-2 z-10">
-                    {['프로젝트에 대해 알려줘', '벡터 데이터베이스란?', 'RAG 시스템의 장점은?'].map((suggestion, i) => (
+                    {['프로젝트에 대해 알려줘', '벡터 데이터베이스란?', 'RAG 시스템이란?'].map((suggestion, i) => (
                       <button 
                         key={i}
                         onClick={() => setQuery(suggestion)}
@@ -278,7 +285,7 @@ export default function RagPage() {
                       } p-4 shadow-sm`}>
                         {/* 안내문구 */}
                         {isRag && (
-                          <div className="text-xs font-semibold text-purple-500 mb-1">내 데이터 기반 답변</div>
+                          <div className="text-xs font-semibold text-purple-500 mb-1">대화내역 기반 답변</div>
                         )}
                         {isFallback && (
                           <div className="text-xs font-semibold text-gray-500 mb-1">일반 AI 답변 (참고용)</div>
