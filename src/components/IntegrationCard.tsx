@@ -86,10 +86,6 @@ export default function IntegrationCard({ integration, categoryCount, onFavorite
 
   // userMap에서 이름 찾기
   const userName = chatSession?.user_id && userMap ? userMap[chatSession.user_id] : undefined
-  // 디버깅: user_id와 userName, userMap 콘솔 출력 (JSX return 바깥에서만)
-  if (chatSession?.user_id) {
-    console.log('카드 user_id:', chatSession.user_id, 'userName:', userName, 'userMap:', userMap);
-  }
 
   // 즐겨찾기 토글 핸들러
   const handleFavoriteToggle = async (e: React.MouseEvent) => {
