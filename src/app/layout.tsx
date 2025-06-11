@@ -64,6 +64,7 @@ export const metadata: Metadata = {
     google: "google-site-verification-code", // 실제 구글 검증 코드로 교체 필요
   },
   manifest: "/manifest.json",
+  themeColor: '#000000',
 }
 
 export default function RootLayout({
