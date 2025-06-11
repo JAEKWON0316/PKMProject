@@ -135,6 +135,7 @@ SETUP_API_KEY=your-custom-setup-key
 
 ## 🏆 라이선스
 
+본 저장소의 코드를 무단으로 복제, 포크, 상업적 사용하거나 재배포하는 행위를 금지합니다.
 PKM AI
 
 ---
