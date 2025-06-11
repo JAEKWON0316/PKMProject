@@ -148,7 +148,7 @@ export default function AdminClient() {
   };
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-10 bg-black min-h-screen">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">관리자 대시보드</h1>
         <Button variant="outline" onClick={handleRefresh} className="flex items-center gap-2">

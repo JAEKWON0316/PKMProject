@@ -17,6 +17,15 @@ export default function Navbar() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { user, profile, isAuthenticated, loading } = useAuth();
 
+  // 메인페이지, 대시보드, 어드민, 약관, 개인정보 페이지 여부 확인
+  const isBlackBgPage = [
+    '/',
+    '/dashboard',
+    '/admin',
+    '/terms',
+    '/privacy'
+  ].includes(pathname);
+
   // 메인페이지 여부 확인
   const isMainPage = pathname === '/';
 
@@ -57,7 +66,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className={`${isMainPage ? 'w-full' : 'fixed top-0 left-0 w-full'} z-50 py-3 px-4 sm:py-4 sm:px-6 md:px-8 ${isMainPage ? 'bg-black/[0.96]' : 'bg-gray-900/95'} backdrop-blur-sm`}>
+      <nav className={`${isBlackBgPage ? 'w-full bg-black/[0.96]' : 'fixed top-0 left-0 w-full bg-gray-900/95'} z-50 py-3 px-4 sm:py-4 sm:px-6 md:px-8 backdrop-blur-sm`}>
         {/* 데스크탑 레이아웃 */}
         <div className="hidden md:block">
           <div className="container mx-auto flex justify-between items-center">
@@ -186,7 +195,7 @@ export default function Navbar() {
 
       {/* 모바일 메뉴 드롭다운 */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed top-[64px] left-0 w-full z-40 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800">
+        <div className={`md:hidden fixed top-[64px] left-0 w-full z-40 ${isBlackBgPage ? 'bg-black/[0.96]' : 'bg-gray-900/95'} backdrop-blur-sm border-t border-gray-800`}>
           <div className="container mx-auto px-4 py-4 space-y-3">
             <MobileNavLink 
               href="/save-chat" 

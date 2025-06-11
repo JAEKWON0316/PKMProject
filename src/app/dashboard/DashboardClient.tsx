@@ -352,9 +352,7 @@ export default function DashboardClient() {
   }
 
   return (
-    <div
-      className={`${theme} min-h-screen main-dark-theme dashboard-purple-bg text-slate-100 relative overflow-hidden`}
-    >
+    <div className="bg-black min-h-screen w-full">
       {/* Background particle effect */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 purple-particles" />
 

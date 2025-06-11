@@ -17,7 +17,7 @@ const snsLinks = [
 
 export default function Footer() {
   const pathname = usePathname();
-  const isDark = pathname === '/' || pathname.startsWith('/dashboard') || pathname === '/terms' || pathname === '/privacy';
+  const isDark = pathname === '/' || pathname.startsWith('/dashboard') || pathname === '/terms' || pathname === '/privacy' || pathname === '/admin';
   const footerClass = isDark
     ? 'bg-gray-900 text-gray-400 dark:bg-black'
     : 'bg-gray-800 text-gray-400';

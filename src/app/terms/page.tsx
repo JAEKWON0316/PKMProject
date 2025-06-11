@@ -2,7 +2,7 @@ import React from "react";
 
 export default function TermsPage() {
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-24 sm:pt-32 pb-12 sm:pb-16 text-gray-800 dark:text-gray-200">
+    <div className="max-w-2xl mx-auto px-4 pt-24 sm:pt-32 pb-12 sm:pb-16 text-gray-800 dark:text-gray-200 bg-black">
       <h1 className="text-3xl sm:text-4xl font-bold mb-2">PKM AI 서비스 이용약관</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">최종 갱신일: 2025-06-10</p>
       <nav className="mb-8">

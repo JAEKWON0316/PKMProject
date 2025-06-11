@@ -73,7 +73,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
+      <body className={`${inter.className} flex flex-col min-h-screen bg-black`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
