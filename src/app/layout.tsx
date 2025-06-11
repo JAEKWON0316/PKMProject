@@ -65,6 +65,9 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   themeColor: '#000000',
+  other: {
+    'naver-site-verification': '728ffb9f959ee0f659a49c1be654952f548da08c',
+  },
 }
 
 export default function RootLayout({
