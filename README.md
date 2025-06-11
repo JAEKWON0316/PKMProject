@@ -11,7 +11,7 @@
 - **RAG(Retrieval-Augmented Generation)** 기반 검색 및 질의응답
 - **Supabase** + **pgvector**로 임베딩/검색/스토리지
 - **Next.js(App Router, TypeScript, TailwindCSS)** 기반 웹 UI
-- **SaaS 확장** 및 자동화(Playwright, n8n, GitHub Actions) 지원
+- **SaaS 확장** 및 자동화(puppeteer, n8n, GitHub Actions) 지원
 
 ---
 
@@ -47,22 +47,31 @@ pmkProject/
 
 - **Frontend**: Next.js 14 (App Router), TypeScript, TailwindCSS, shadcn/ui, Zustand
 - **Backend**: Next.js API Routes, Node.js, Prisma, Supabase, pgvector
-- **AI/자동화**: OpenAI GPT-4.1-nano, Playwright, n8n, react-query, zod
+- **AI/자동화**: OpenAI GPT-4.1-nano, puppeteer, chromium, n8n, react-query, zod
 - **DB**: SQLite(개인용) → PostgreSQL(확장), Supabase, Prisma ORM
 - **RAG**: LangChain, OpenAI Embedding, pgvector
-- **DevOps**: Vercel, GitHub Actions, Docker(standalone), 환경별 .env
+- **DevOps**: Vercel, GitHub Actions, 환경별 .env
 
 ---
 
 ## 🧩 주요 기능
 
-- ChatGPT 대화 자동/수동 수집 및 요약
+- ChatGPT 대화 자동/수동 수집 및 요약(url활용)
+- puppeteer, chromium을 활용한 자동화 크롤링
 - Obsidian Vault 구조로 마크다운 저장
+- otp, google auth, password르 활용한 3구조 로그인
 - Supabase + pgvector 기반 임베딩/검색
+- integrations 대화찾아보기 및 즐겨찾기
+- 개인화된 대시보드로 식별
 - RAG 기반 질의응답 API (`/api/rag/ask`)
 - SaaS 확장 및 멀티 유저 지원 설계
-- 자동화 스크립트(Playwright, n8n 등)
+- 자동화 스크립트(puppeteer, n8n 등)
 - GitHub, Obsidian, Supabase 연동
+- Stripe를 활용한 구독 및 결제시스템
+- (실제결제X, api를 활용한 테스트결제만)
+- 테스트 카드번호 (4242-4242-4242-4242)
+- 대화내역 , 사용자 및 구독자 관리가능한 admin 페이지
+
 
 ---
 
