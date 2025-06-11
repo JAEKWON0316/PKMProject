@@ -509,178 +509,185 @@ export function LoginCard({ resetToEmailMode, onPasswordModeChange, onClose, onB
         </div>
       )}
 
-      <div className="mb-4 sm:mb-6">
-        <p className="mb-3 text-center text-sm font-light">
-          {passwordResetMode 
-            ? "재설정 링크를 받을 이메일을 입력하세요."
-            : signupMode
-            ? "시작하려면 가입하세요."
-            : otpMode
-            ? `${otpSentEmail}로 발송된 6자리 인증 코드를 입력하세요.`
-            : usePassword 
-            ? "로그인하려면 이메일과 비밀번호를 입력하세요." 
-            : "시작하려면 이메일을 입력하세요."
-          }
-        </p>
-        
-        {/* 이름 입력 (회원가입 모드에서만) */}
-        {signupMode && (
-          <div className="relative mb-4">
-            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이름 (선택사항)</label>
-            <Input
-              type="text"
-              placeholder="홍길동"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="border border-[#333] bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-          </div>
-        )}
-        
-        {/* 이메일 입력 */}
-        {!otpMode && (
-          <div className="relative mb-4">
-            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이메일</label>
-            <Input
-              type="email"
-              placeholder="yours@example.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (e.target.value) validateEmail(e.target.value)
-              }}
-              className={`border ${emailError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-            />
-            {emailError && (
-              <p className="text-red-400 text-xs mt-1 ml-3">{emailError}</p>
-            )}
-          </div>
-        )}
-
-        {/* OTP 코드 입력 (OTP 모드 또는 비밀번호 재설정 OTP 모드에서) */}
-        {(otpMode || passwordResetOtpMode) && (
-          <div className="relative">
-            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">
-              {passwordResetOtpMode ? "재설정 코드" : "인증 코드"}
-            </label>
-            <Input
-              type="text"
-              placeholder={passwordResetOtpMode ? "이메일로 받은 6자리 재설정 코드" : "이메일로 받은 6자리 코드"}
-              value={otpCode}
-              onChange={(e) => {
-                setOtpCode(e.target.value)
-                if (e.target.value) validateOtpCode(e.target.value)
-              }}
-              className={`border ${otpError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-              maxLength={6}
-            />
-            {otpError && (
-              <p className="text-red-400 text-xs mt-1 ml-3">{otpError}</p>
-            )}
-          </div>
-        )}
-
-        {/* 새 비밀번호 입력 (비밀번호 재설정 새 비밀번호 모드에서) */}
-        {passwordResetNewPasswordMode && (
-          <>
-            <div className="relative">
-              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">새 비밀번호</label>
-              <Input
-                type="password"
-                placeholder="새 비밀번호를 입력하세요"
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value)
-                  if (e.target.value) validateNewPassword(e.target.value)
-                  if (confirmNewPassword) validateConfirmNewPassword(confirmNewPassword)
-                }}
-                className={`border ${newPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-              />
-              {newPasswordError && (
-                <p className="text-red-400 text-xs mt-1 ml-3">{newPasswordError}</p>
-              )}
-            </div>
-            
-            <div className="relative mt-6">
-              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">새 비밀번호 확인</label>
-              <Input
-                type="password"
-                placeholder="새 비밀번호를 다시 입력하세요"
-                value={confirmNewPassword}
-                onChange={(e) => {
-                  setConfirmNewPassword(e.target.value)
-                  if (e.target.value) validateConfirmNewPassword(e.target.value)
-                }}
-                className={`border ${confirmNewPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-              />
-              {confirmNewPasswordError && (
-                <p className="text-red-400 text-xs mt-1 ml-3">{confirmNewPasswordError}</p>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* 비밀번호 입력 (비밀번호 모드 또는 가입 모드에서) */}
-        {(usePassword || signupMode) && !otpMode && !passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && (
-          <div className="relative">
-            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호</label>
-            <Input
-              type="password"
-              placeholder="비밀번호를 입력하세요"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                if (e.target.value) validatePassword(e.target.value)
-                if (confirmPassword) validateConfirmPassword(confirmPassword)
-              }}
-              className={`border ${passwordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-            />
-            {passwordError && (
-              <p className="text-red-400 text-xs mt-1 ml-3">{passwordError}</p>
-            )}
-          </div>
-        )}
-
-        {/* 비밀번호 확인 입력 (가입 모드에서만) */}
-        {signupMode && !otpMode && (
-          <div className="relative mt-4">
-            <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호 확인</label>
-            <Input
-              type="password"
-              placeholder="비밀번호를 다시 입력하세요"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value)
-                if (e.target.value) validateConfirmPassword(e.target.value)
-              }}
-              className={`border ${confirmPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
-            />
-            {confirmPasswordError && (
-              <p className="text-red-400 text-xs mt-1 ml-3">{confirmPasswordError}</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <Button
-        className="w-full bg-[#b975ff] py-4 sm:py-6 text-base font-medium text-white hover:bg-[#a35ce0] disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={handleSubmit}
-        disabled={loading}
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          handleSubmit();
+        }}
       >
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>처리 중...</span>
-          </div>
-        ) : (
-          passwordResetNewPasswordMode ? "비밀번호 재설정" :
-          passwordResetOtpMode ? "코드 확인" :
-          passwordResetMode ? "재설정 코드 보내기" :
-          otpMode ? "코드 확인" :
-          signupMode ? "가입하기" :
-          usePassword ? "로그인" : "코드 받기"
-        )}
-      </Button>
+        <div className="mb-4 sm:mb-6">
+          <p className="mb-3 text-center text-sm font-light">
+            {passwordResetMode 
+              ? "재설정 링크를 받을 이메일을 입력하세요."
+              : signupMode
+              ? "시작하려면 가입하세요."
+              : otpMode
+              ? `${otpSentEmail}로 발송된 6자리 인증 코드를 입력하세요.`
+              : usePassword 
+              ? "로그인하려면 이메일과 비밀번호를 입력하세요." 
+              : "시작하려면 이메일을 입력하세요."
+            }
+          </p>
+          
+          {/* 이름 입력 (회원가입 모드에서만) */}
+          {signupMode && (
+            <div className="relative mb-4">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이름 (선택사항)</label>
+              <Input
+                type="text"
+                placeholder="홍길동"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="border border-[#333] bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
+          )}
+          
+          {/* 이메일 입력 */}
+          {!otpMode && (
+            <div className="relative mb-4">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">이메일</label>
+              <Input
+                type="email"
+                placeholder="yours@example.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  if (e.target.value) validateEmail(e.target.value)
+                }}
+                className={`border ${emailError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              />
+              {emailError && (
+                <p className="text-red-400 text-xs mt-1 ml-3">{emailError}</p>
+              )}
+            </div>
+          )}
+
+          {/* OTP 코드 입력 (OTP 모드 또는 비밀번호 재설정 OTP 모드에서) */}
+          {(otpMode || passwordResetOtpMode) && (
+            <div className="relative">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">
+                {passwordResetOtpMode ? "재설정 코드" : "인증 코드"}
+              </label>
+              <Input
+                type="text"
+                placeholder={passwordResetOtpMode ? "이메일로 받은 6자리 재설정 코드" : "이메일로 받은 6자리 코드"}
+                value={otpCode}
+                onChange={(e) => {
+                  setOtpCode(e.target.value)
+                  if (e.target.value) validateOtpCode(e.target.value)
+                }}
+                className={`border ${otpError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+                maxLength={6}
+              />
+              {otpError && (
+                <p className="text-red-400 text-xs mt-1 ml-3">{otpError}</p>
+              )}
+            </div>
+          )}
+
+          {/* 새 비밀번호 입력 (비밀번호 재설정 새 비밀번호 모드에서) */}
+          {passwordResetNewPasswordMode && (
+            <>
+              <div className="relative">
+                <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">새 비밀번호</label>
+                <Input
+                  type="password"
+                  placeholder="새 비밀번호를 입력하세요"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value)
+                    if (e.target.value) validateNewPassword(e.target.value)
+                    if (confirmNewPassword) validateConfirmNewPassword(confirmNewPassword)
+                  }}
+                  className={`border ${newPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+                />
+                {newPasswordError && (
+                  <p className="text-red-400 text-xs mt-1 ml-3">{newPasswordError}</p>
+                )}
+              </div>
+              
+              <div className="relative mt-6">
+                <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">새 비밀번호 확인</label>
+                <Input
+                  type="password"
+                  placeholder="새 비밀번호를 다시 입력하세요"
+                  value={confirmNewPassword}
+                  onChange={(e) => {
+                    setConfirmNewPassword(e.target.value)
+                    if (e.target.value) validateConfirmNewPassword(e.target.value)
+                  }}
+                  className={`border ${confirmNewPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+                />
+                {confirmNewPasswordError && (
+                  <p className="text-red-400 text-xs mt-1 ml-3">{confirmNewPasswordError}</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 비밀번호 입력 (비밀번호 모드 또는 가입 모드에서) */}
+          {(usePassword || signupMode) && !otpMode && !passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && (
+            <div className="relative">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호</label>
+              <Input
+                type="password"
+                placeholder="비밀번호를 입력하세요"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (e.target.value) validatePassword(e.target.value)
+                  if (confirmPassword) validateConfirmPassword(confirmPassword)
+                }}
+                className={`border ${passwordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              />
+              {passwordError && (
+                <p className="text-red-400 text-xs mt-1 ml-3">{passwordError}</p>
+              )}
+            </div>
+          )}
+
+          {/* 비밀번호 확인 입력 (가입 모드에서만) */}
+          {signupMode && !otpMode && (
+            <div className="relative mt-4">
+              <label className="absolute -top-2.5 left-3 bg-[#1a1a1a] px-1 text-xs text-[#b975ff]">비밀번호 확인</label>
+              <Input
+                type="password"
+                placeholder="비밀번호를 다시 입력하세요"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  if (e.target.value) validateConfirmPassword(e.target.value)
+                }}
+                className={`border ${confirmPasswordError ? 'border-red-500' : 'border-[#333]'} bg-transparent py-4 sm:py-6 pl-4 text-white focus:border-[#b975ff] focus-visible:ring-0 focus-visible:ring-offset-0`}
+              />
+              {confirmPasswordError && (
+                <p className="text-red-400 text-xs mt-1 ml-3">{confirmPasswordError}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full bg-[#b975ff] py-4 sm:py-6 text-base font-medium text-white hover:bg-[#a35ce0] disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading}
+        >
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>처리 중...</span>
+            </div>
+          ) : (
+            passwordResetNewPasswordMode ? "비밀번호 재설정" :
+            passwordResetOtpMode ? "코드 확인" :
+            passwordResetMode ? "재설정 코드 보내기" :
+            otpMode ? "코드 확인" :
+            signupMode ? "가입하기" :
+            usePassword ? "로그인" : "코드 받기"
+          )}
+        </Button>
+      </form>
 
       {!passwordResetMode && !passwordResetOtpMode && !passwordResetNewPasswordMode && !otpMode && (
         <>
