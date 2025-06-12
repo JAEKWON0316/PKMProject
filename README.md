@@ -62,7 +62,7 @@ pmkProject/
 - otp, google auth, password르 활용한 3구조 로그인
 - Supabase + pgvector 기반 임베딩/검색
 - integrations 대화찾아보기 및 즐겨찾기
-- 개인화된 대시보드로 식별
+- 개인화된 대시보드로 데이터 식별
 - RAG 기반 질의응답 API (`/api/rag/ask`)
 - SaaS 확장 및 멀티 유저 지원 설계
 - 자동화 스크립트(puppeteer, n8n 등)

@@ -129,8 +129,8 @@ export default function DashboardClient() {
 
   // 초기 데이터 로딩 및 사용자 변경 시 재로딩
   useEffect(() => {
-    // AuthContext가 로딩 중이면 아무것도 하지 않음
-    if (loading) {
+    // AuthContext가 로딩 중이거나 profile이 아직 준비되지 않았으면 아무것도 하지 않음
+    if (loading || !profile) {
       return
     }
 
@@ -147,7 +147,7 @@ export default function DashboardClient() {
       }, 1000) // 좀 더 빠르게 처리
       return () => clearTimeout(timer)
     }
-  }, [user?.id, isAuthenticated, loading]) // loading 종속성 추가
+  }, [user?.id, profile, isAuthenticated, loading]) // profile 의존성 추가
 
   // 시간 업데이트 (기존 로직 유지)
   useEffect(() => {
@@ -282,14 +282,13 @@ export default function DashboardClient() {
   // 관리자용 전체 대화 수 MetricCard
   const isAdmin = profile?.role === 'admin';
 
-  // AuthContext가 아직 로딩 중이면 로딩 화면 표시
+  // 1. 로딩 중이면 무조건 오버레이 로딩 UI만 보여줌
   if (loading) {
     return (
-      <div className={`${theme} min-h-screen main-dark-theme dashboard-purple-bg text-slate-100 relative overflow-hidden`}>
+      <div className="bg-black min-h-screen w-full relative">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 purple-particles" />
         <div className="absolute inset-0 bg-grid-white/[0.02] -z-10"></div>
-        
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="flex flex-col items-center">
             <div className="relative w-24 h-24">
               <div className="absolute inset-0 border-4 border-cyan-500/30 rounded-full animate-ping"></div>
@@ -298,21 +297,20 @@ export default function DashboardClient() {
               <div className="absolute inset-6 border-4 border-b-blue-500 border-t-transparent border-r-transparent border-l-transparent rounded-full animate-spin-slower"></div>
               <div className="absolute inset-8 border-4 border-l-green-500 border-t-transparent border-r-transparent border-b-transparent rounded-full animate-spin"></div>
             </div>
-            <div className="mt-4 text-purple-500 font-mono text-sm tracking-wider">AUTHENTICATION CHECK</div>
+            <div className="mt-4 text-purple-500 font-mono text-sm tracking-wider">PKM AI</div>
           </div>
         </div>
       </div>
     )
   }
 
-  // 비인증 사용자를 위한 로그인 화면
+  // 2. 로딩이 끝난 후, 비인증 사용자를 위한 로그인 화면
   if (!isAuthenticated) {
     return (
       <>
         <div className={`${theme} min-h-screen main-dark-theme dashboard-purple-bg text-slate-100 relative overflow-hidden`}>
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 purple-particles" />
           <div className="absolute inset-0 bg-grid-white/[0.02] -z-10"></div>
-          
           <div className="flex items-center justify-center min-h-screen">
             <Card className="bg-background/60 border-border/50 backdrop-blur-sm p-8 max-w-md mx-4">
               <CardHeader className="text-center">
@@ -341,7 +339,6 @@ export default function DashboardClient() {
             </Card>
           </div>
         </div>
-        
         {/* 로그인 모달 */}
         <LoginModal 
           isOpen={isLoginModalOpen} 
@@ -351,15 +348,15 @@ export default function DashboardClient() {
     )
   }
 
+  // 3. 로그인한 경우: 본문은 항상 렌더, 로딩 중에는 오버레이만
   return (
-    <div className="bg-black min-h-screen w-full">
+    <div className="bg-black min-h-screen w-full relative">
       {/* Background particle effect */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60 purple-particles" />
-
       {/* Background grid */}
       <div className="absolute inset-0 bg-grid-white/[0.02] -z-10"></div>
 
-      {/* Loading overlay */}
+      {/* 데이터 로딩 중이면 오버레이 로딩 UI */}
       {isLoading && (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="flex flex-col items-center">
@@ -375,6 +372,7 @@ export default function DashboardClient() {
         </div>
       )}
 
+      {/* 대시보드 본문 */}
       <div className="container mx-auto p-4 relative z-10 pt-20 md:pt-28">
         {/* Header */}
         <header className="flex items-center justify-between py-4 border-b border-slate-700/50 mb-6">
