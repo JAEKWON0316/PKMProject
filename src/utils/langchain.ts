@@ -152,18 +152,32 @@ export async function generateRagResponse(
       return `[출처 ${i+1}: ${session?.title || '알 수 없음'}]\n${chunk.content}\n`;
     }).join('\n');
     
-    // 4. 출처 정보 생성
-    let sources: RagSource[] = similarChunks.map((chunk: ChatChunk) => {
-      const session = sessions.find((s: ChatSession) => s.id === chunk.chat_session_id);
-      return {
-        id: session?.id,
-        title: session?.title,
-        url: session?.url,
-        similarity: chunk.similarity
-      };
-    });
+    // 4. 출처 정보 생성 (유사도 50% 이상인 것만 표시, 같은 문서는 중복 제거)
+    let sources: RagSource[] = similarChunks
+      .filter((chunk: ChatChunk) => (chunk.similarity || 0) >= 0.5) // 유사도 50% 이상만 필터링
+      .map((chunk: ChatChunk) => {
+        const session = sessions.find((s: ChatSession) => s.id === chunk.chat_session_id);
+        return {
+          id: session?.id,
+          title: session?.title,
+          url: session?.url,
+          similarity: chunk.similarity
+        };
+      });
     // FAQ 세션 소스 제외
     sources = sources.filter(source => source.id !== FAQ_SESSION_ID);
+    
+    // 같은 문서(세션 ID) 중복 제거 - 가장 높은 유사도를 가진 것만 유지
+    const uniqueSources = new Map<string, RagSource>();
+    sources.forEach(source => {
+      if (source.id) {
+        const existing = uniqueSources.get(source.id);
+        if (!existing || (source.similarity || 0) > (existing.similarity || 0)) {
+          uniqueSources.set(source.id, source);
+        }
+      }
+    });
+    sources = Array.from(uniqueSources.values());
     
     // 5. 프롬프트 생성
     const prompt = `\n아래 컨텍스트를 참고하여 질문에 답변하세요.\n- 컨텍스트에 명확한 답이 있으면 그 내용을 바탕으로 답변하세요.\n- 컨텍스트에 직접적인 답이 없더라도, 유사하거나 관련된 내용을 바탕으로 최대한 추론하여 답변하세요.\n- 정말로 컨텍스트에 아무런 단서도 없을 때만 \"이 정보는 제공된 컨텍스트에 없습니다.\"라고 답하세요.\n\n컨텍스트:\n${context}\n\n질문: ${query}\n\n답변:`;

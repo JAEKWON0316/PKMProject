@@ -95,7 +95,7 @@ export default function RagPage() {
       const response = await fetch('/api/rag/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, similarity: 0.3, limit: 10 })
+        body: JSON.stringify({ query, similarity: 0.5, limit: 10 })     
       });
       
       const data = await response.json();
